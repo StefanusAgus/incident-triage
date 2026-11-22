@@ -1,0 +1,1 @@
+"""Future idempotent incident ingestion."""

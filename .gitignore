@@ -221,3 +221,10 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# Incident triage local configuration, data, and uv caches
+.env.*
+!.env.example
+data/
+.uv-cache/
+.uv-python/
