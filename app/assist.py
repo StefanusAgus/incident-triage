@@ -138,7 +138,7 @@ def assist_incidents(
     session: Session,
     request: AssistRequest,
     settings: Settings,
-    client: Any | None = None,
+    client: Any,
 ) -> AssistResponse:
     """Retrieve up to ten records, then make exactly one structured model call."""
     filters = request.model_dump(exclude={"question"})
@@ -180,15 +180,9 @@ def assist_incidents(
         "retrieved_incidents": [record.model_dump(mode="json") for record in candidates],
     }, ensure_ascii=False)
 
-    try:
-        runtime_client = client if client is not None else create_openai_client(settings)
-    except AssistConfigurationError as exc:
-        _log_failure("configuration", exc, model=settings.llm_model)
-        raise
-
     model_started_at = monotonic()
     try:
-        response = runtime_client.responses.parse(
+        response = client.responses.parse(
             model=settings.llm_model,
             instructions=ASSIST_SYSTEM_PROMPT,
             input=model_input,

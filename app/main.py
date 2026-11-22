@@ -1,6 +1,7 @@
 """FastAPI application lifecycle and local server entry point."""
 
 from contextlib import asynccontextmanager
+from threading import Lock
 from time import monotonic
 
 import uvicorn
@@ -31,6 +32,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     async def lifespan(app: FastAPI):
         runtime_settings = settings if settings is not None else Settings()
         app.state.settings = runtime_settings
+        app.state.openai_client = None
         engine = build_engine(runtime_settings.database_url)
         app.state.engine = engine
         try:
@@ -38,9 +40,15 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             announce_observability()
             yield
         finally:
+            client = app.state.openai_client
+            close_client = getattr(client, "close", None)
+            if callable(close_client):
+                close_client()
+            app.state.openai_client = None
             engine.dispose()
 
     app = FastAPI(title=APP_TITLE, lifespan=lifespan)
+    app.state.openai_client_lock = Lock()
     app.include_router(router)
 
     @app.middleware("http")

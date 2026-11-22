@@ -45,7 +45,7 @@ def announce_observability() -> None:
             "GET /debug/trace/{correlation_id}; Uvicorn access logs are disabled."
         ),
     )
-    print(json.dumps(event, ensure_ascii=False, separators=(",", ":")), flush=True)
+    print(json.dumps(event, separators=(",", ":")), flush=True)
 
 
 def resolve_correlation_id(value: str | None) -> str:
@@ -85,4 +85,4 @@ def reset_trace(token: Token[list[dict[str, object]] | None]) -> None:
 def log_step(step: str, **summary: object) -> None:
     event = _event(step, **summary)
     _record_event(event)
-    print(json.dumps(event, ensure_ascii=False, separators=(",", ":")), flush=True)
+    print(json.dumps(event, separators=(",", ":")), flush=True)

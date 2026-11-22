@@ -123,6 +123,25 @@ def test_assist_retrieves_full_records_and_makes_one_structured_call(assist_app,
     }
 
 
+def test_assist_reuses_one_openai_client_across_requests(assist_app, monkeypatch) -> None:
+    client, _, _ = assist_app
+    fake = FakeClient(lambda kwargs: completed(grounded_output_from_call(kwargs)))
+    factory_calls = 0
+
+    def create_client(settings):
+        nonlocal factory_calls
+        factory_calls += 1
+        return fake
+
+    monkeypatch.setattr(assist_module, "create_openai_client", create_client)
+    for question in ("database connection pool", "HTTP 503 traffic spike"):
+        response = client.post("/assist", json={"question": question})
+        assert response.status_code == 200
+
+    assert factory_calls == 1
+    assert len(fake.responses.calls) == 2
+
+
 def test_empty_evidence_still_calls_model_and_returns_targeted_questions(assist_app, monkeypatch) -> None:
     client, _, _ = assist_app
 

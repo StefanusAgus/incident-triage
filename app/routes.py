@@ -2,7 +2,9 @@
 
 from typing import Annotated
 
+import app.assist as assist_module
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from openai import OpenAI
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
@@ -15,7 +17,7 @@ from app.assist import (
     assist_incidents,
 )
 from app.ingest import ingest_incidents
-from app.observability import is_valid_correlation_id
+from app.observability import is_valid_correlation_id, log_step
 from app.schemas import (
     AssistRequest,
     AssistResponse,
@@ -35,6 +37,21 @@ def _error_detail(request: Request, message: str) -> dict[str, str]:
         "message": message,
         "correlation_id": request.state.correlation_id,
     }
+
+
+def _add_chat_message(request: Request, role: str, content: object) -> None:
+    request.state.chat_messages.append({"role": role, "content": content})
+
+
+def _get_openai_client(request: Request) -> OpenAI:
+    state = request.app.state
+    if state.openai_client is None:
+        with state.openai_client_lock:
+            if state.openai_client is None:
+                state.openai_client = assist_module.create_openai_client(
+                    state.settings,
+                )
+    return state.openai_client
 
 
 @router.get("/debug/trace/{correlation_id}", response_model=TraceResponse)
@@ -109,30 +126,28 @@ def search(
 def assist(
     body: AssistRequest, request: Request, session: Session = Depends(get_session),
 ) -> AssistResponse:
-    request.state.chat_messages.append({
-        "role": "user",
-        "content": body.model_dump(mode="json"),
-    })
+    _add_chat_message(request, "user", body.model_dump(mode="json"))
     try:
+        client = _get_openai_client(request)
         result = assist_incidents(
-            session, body, request.app.state.settings,
+            session, body, request.app.state.settings, client,
         )
-        request.state.chat_messages.append({
-            "role": "assistant",
-            "content": result.model_dump(mode="json"),
-        })
+        _add_chat_message(request, "assistant", result.model_dump(mode="json"))
         return result
     except AssistConfigurationError as exc:
-        request.state.chat_messages.append({
-            "role": "assistant", "content": {"error": str(exc)},
-        })
+        log_step(
+            "assist:error",
+            failed_step="configuration",
+            error_type=type(exc).__name__,
+            error_message=str(exc),
+            model=request.app.state.settings.llm_model,
+        )
+        _add_chat_message(request, "assistant", {"error": str(exc)})
         raise HTTPException(
             status_code=503, detail=_error_detail(request, str(exc)),
         ) from exc
     except (AssistProviderError, AssistOutputError) as exc:
-        request.state.chat_messages.append({
-            "role": "assistant", "content": {"error": str(exc)},
-        })
+        _add_chat_message(request, "assistant", {"error": str(exc)})
         raise HTTPException(
             status_code=502, detail=_error_detail(request, str(exc)),
         ) from exc
@@ -141,9 +156,7 @@ def assist(
             "Incident search failed. Check SQLite database access and FTS5 "
             "initialization, then retry."
         )
-        request.state.chat_messages.append({
-            "role": "assistant", "content": {"error": message},
-        })
+        _add_chat_message(request, "assistant", {"error": message})
         raise HTTPException(
             status_code=503,
             detail=_error_detail(

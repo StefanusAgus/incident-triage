@@ -1,4 +1,4 @@
-"""Shared retrieval code for GET /search and the future assist workflow."""
+"""Shared retrieval code used by both GET /search and POST /assist."""
 
 import re
 
