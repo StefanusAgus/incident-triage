@@ -1,10 +1,13 @@
 """Environment-backed application settings."""
 
+from pathlib import Path
+
 from pydantic import Field, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.constants import (
     DEFAULT_DATABASE_URL,
+    DEFAULT_DATA_PATH,
     DEFAULT_LLM_MODEL,
     DEFAULT_LLM_TIMEOUT_SECONDS,
     DEFAULT_PORT,
@@ -28,4 +31,5 @@ class Settings(BaseSettings):
         le=MAX_LLM_TIMEOUT_SECONDS,
     )
     database_url: str = DEFAULT_DATABASE_URL
+    data_path: Path = Path(DEFAULT_DATA_PATH)
     port: int = Field(default=DEFAULT_PORT, ge=MIN_PORT, le=MAX_PORT)

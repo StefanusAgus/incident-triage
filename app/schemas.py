@@ -10,6 +10,7 @@ from pydantic import (
     RootModel,
     StringConstraints,
     field_validator,
+    model_validator,
 )
 
 from app.constants import Environment, Severity
@@ -38,3 +39,20 @@ class IncidentRecord(BaseModel):
 
 class IncidentDataset(RootModel[list[IncidentRecord]]):
     """A JSON array of validated incidents; sample count is configurable."""
+
+    @model_validator(mode="after")
+    def require_unique_ids(self) -> "IncidentDataset":
+        seen = set()
+        for record in self.root:
+            if record.id in seen:
+                raise ValueError(f"Duplicate incident ID: {record.id}")
+            seen.add(record.id)
+        return self
+
+
+class IngestResult(BaseModel):
+    """Counts of newly inserted, unchanged, and updated incident records."""
+
+    ingested: int = 0
+    skipped: int = 0
+    updated: int = 0

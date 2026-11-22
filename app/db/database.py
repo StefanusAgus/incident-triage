@@ -1,15 +1,19 @@
 """SQLite engine creation, schema initialization, and request-scoped sessions."""
 
+import json
 from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 from fastapi import Request
 from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.pool import StaticPool
+from sqlalchemy import text
 from sqlmodel import Session, create_engine
 
 from app.db.models import Incident
+from app.schemas import IncidentRecord
 
 CREATE_INCIDENT_FTS_SQL = """
 CREATE VIRTUAL TABLE IF NOT EXISTS incident_fts USING fts5(
@@ -19,6 +23,12 @@ CREATE VIRTUAL TABLE IF NOT EXISTS incident_fts USING fts5(
     resolution_summary,
     tags
 )
+"""
+
+DELETE_INCIDENT_FTS_SQL = "DELETE FROM incident_fts WHERE incident_id = :incident_id"
+INSERT_INCIDENT_FTS_SQL = """
+INSERT INTO incident_fts (incident_id, title, description, resolution_summary, tags)
+VALUES (:incident_id, :title, :description, :resolution_summary, :tags)
 """
 
 
@@ -54,3 +64,27 @@ def get_session(request: Request) -> Iterator[Session]:
     """One session per request; close and roll back uncommitted work on exit."""
     with Session(request.app.state.engine) as session:
         yield session
+
+
+@contextmanager
+def ingest_transaction(session: Session) -> Iterator[None]:
+    """Serialize SQLite writers before reads so concurrent counts stay accurate."""
+    with session.begin():
+        session.connection().exec_driver_sql("BEGIN IMMEDIATE")
+        yield
+
+
+def get_incident(session: Session, incident_id: str) -> Incident | None:
+    return session.get(Incident, incident_id)
+
+
+def replace_fts_entry(session: Session, record: IncidentRecord) -> None:
+    """Replace an index entry on the caller's transaction without committing."""
+    session.execute(text(DELETE_INCIDENT_FTS_SQL), {"incident_id": record.id})
+    session.execute(text(INSERT_INCIDENT_FTS_SQL), {
+        "incident_id": record.id,
+        "title": record.title,
+        "description": record.description,
+        "resolution_summary": record.resolution_summary,
+        "tags": json.dumps(record.tags, ensure_ascii=False),
+    })

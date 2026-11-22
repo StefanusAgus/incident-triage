@@ -8,12 +8,14 @@ from fastapi import FastAPI
 from app.config import Settings
 from app.constants import APP_TITLE
 from app.db.database import build_engine, initialize_database
+from app.routes import router
 
 
 def create_app(settings: Settings | None = None) -> FastAPI:
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         runtime_settings = settings if settings is not None else Settings()
+        app.state.settings = runtime_settings
         engine = build_engine(runtime_settings.database_url)
         app.state.engine = engine
         try:
@@ -23,6 +25,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             engine.dispose()
 
     app = FastAPI(title=APP_TITLE, lifespan=lifespan)
+    app.include_router(router)
 
     @app.get("/health")
     def health() -> dict[str, str]:

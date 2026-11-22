@@ -1,7 +1,7 @@
 # Incident Triage
 
-FastAPI scaffold with validated incident contracts and a SQLite/FTS5 schema for
-`incident-triage-take-home.md`. Incident endpoints are not implemented yet.
+FastAPI incident ingestion and details API with validated contracts and a
+SQLite/FTS5 store for `incident-triage-take-home.md`. Search and assist are pending.
 The module boundaries and working rules are in `AGENTS.md`.
 
 ## Run (Bash)
@@ -31,6 +31,9 @@ Settings load from environment variables or `.env` through `app/config.py`.
 API key and makes no LLM calls. `DATABASE_URL` selects the SQLite store, defaulting
 to `sqlite:///./data/incidents.db`. Startup creates missing parent directories
 and initializes empty tables. `PORT` defaults to 8000.
+`DATA_PATH` selects the ingest source, defaulting to `data/incidents.json`.
+Relative paths are resolved from the server's working directory; run from the
+repository root.
 
 ## Generate synthetic data
 
@@ -58,13 +61,13 @@ are arrays of non-empty strings, and unknown record fields are rejected.
 `app/db/models.py` maps incidents to SQLModel, storing tags as a JSON array and
 preserving UTC timestamps across SQLite round trips. `app/db/database.py` provides
 engine creation, repeatable initialization, and a request-scoped session
-dependency. Sessions close and roll back uncommitted work after each request;
-future write operations must commit explicitly.
+dependency. Sessions close and roll back uncommitted work after each request.
+Ingestion commits its batch explicitly.
 
 Application startup creates the `incidents` table and an ordinary FTS5 table,
 `incident_fts`, with searchable title, description, resolution_summary, and tags.
-FTS content is independent of the incidents table. Nothing is ingested or
-indexed automatically yet. SQLite must have FTS5 support; startup reports a
+FTS content is independent of the incidents table. Startup does not ingest or
+index records. SQLite must have FTS5 support; startup reports a
 clear error if it is unavailable. Initialization creates tables, not migrations.
 
 ```bash
@@ -75,9 +78,45 @@ These checks validate all 300 saved records and verify initialization, FTS5,
 JSON tags, UTC persistence, and request-session isolation without modifying the
 application database.
 
+## Ingest and incident details
+
+With the server running, use another Bash terminal:
+
+```bash
+curl -X POST http://127.0.0.1:8000/ingest
+curl -X POST http://127.0.0.1:8000/ingest
+curl http://127.0.0.1:8000/incidents/INC-0001
+```
+
+`POST /ingest` takes no body; it loads `DATA_PATH`. With the default 300-record
+dataset and an empty database, the first response is
+`{"ingested":300,"skipped":0,"updated":0}` and the second is
+`{"ingested":0,"skipped":300,"updated":0}`. `ingested` counts newly inserted
+IDs. Changed records count as `updated`; unchanged validated records count as
+`skipped`. Comparisons use normalized records, including UTC timestamps.
+
+The whole file is validated before writing; duplicate IDs are rejected.
+Each batch updates incidents and FTS entries in one transaction. Changed index
+entries are replaced, so repeated ingestion does not duplicate them. SQLite
+writers are serialized before reading existing records to keep concurrent
+counts accurate. Records absent from the source file are retained.
+
+`GET /incidents/{id}` returns every incident field, with tags as an array and a
+UTC timestamp, or HTTP 404 with the missing ID. Ingestion returns HTTP 422 for
+invalid JSON/records, HTTP 500 with DATA_PATH guidance for unreadable files, and
+HTTP 503 for storage failures after rollback.
+
+```bash
+uv run pytest tests/test_ingest.py
+```
+
+These tests use a temporary source file and isolated SQLite database. They
+verify inserts/skips/updates, all FTS fields, full details/404, validation before
+writes, rollback on FTS failure, and concurrent ingestion.
+
 ## Pending endpoint documentation
 
-`POST /ingest`, `GET /search`, `GET /incidents/{id}`, and `POST /assist` are not
-implemented. Exact curl examples will be added alongside their actual schemas.
+`GET /search` and `POST /assist` are not implemented. Exact curl examples will be
+added alongside their actual schemas.
 The assignment's two search/guardrail unit tests are also pending. See
 `TRADEOFFS.md` for status and `AI-NOTES.md` for validation.
