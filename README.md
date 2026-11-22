@@ -46,10 +46,20 @@ uv run python data/generate_data.py --num-sample 200
 By default, this writes 300 incidents to `data/incidents.json`, using seed 42
 and dates from January through June 2026. `--num-sample` overrides the count;
 both `generate_incidents(num_sample=...)` and `main(num_sample=...)` also accept
-it directly. Counts must be non-negative. Twelve incident families are cycled
-evenly, with compatible services and matching symptoms/resolutions. The
-dataset uses severity labels `SEV1`–`SEV4`. Repeated runs produce identical JSON.
+it directly. Counts must be non-negative. Twelve families each contain three
+paired symptom/cause/resolution scenarios and five relevant workload contexts.
+Service/scenario/context combinations are shuffled with the seeded RNG and
+sampled without replacement. At 300 records, each family contributes 25 records
+and each scenario contributes 8 or 9. All 300 titles, descriptions, and
+resolutions are distinct without relying on IDs, dates, or environments.
+
+The current catalog supports 540 unique balanced samples, including the
+assignment's 200–500 range. Larger requests fail clearly before overwriting the
+output. The dataset uses severity labels `SEV1`–`SEV4`. Repeated runs produce
+identical JSON, and requesting more records preserves the existing prefix.
 The generator uses only Python's standard library and needs no database or key.
+After regenerating, call `POST /ingest` again to refresh an existing database
+and its FTS content; running the generator alone only replaces the JSON file.
 
 ## Data contracts and database
 
@@ -119,7 +129,7 @@ writes, rollback on FTS failure, and concurrent ingestion.
 ```bash
 curl --get http://127.0.0.1:8000/search \
   --data-urlencode 'q=database connection timeouts' \
-  --data-urlencode 'environment=dev' \
+  --data-urlencode 'environment=prod' \
   --data-urlencode 'service=inventory-api' \
   --data-urlencode 'severity=SEV3' \
   --data-urlencode 'tags=database' \
@@ -164,18 +174,18 @@ were tried against the default 300-record dataset, with `limit=3`:
 
 | Question | Top incident IDs | Total keyword hits |
 | --- | --- | --- |
-| Why does orders-api return 503 during a traffic spike? | INC-0085, INC-0241, INC-0013 | 199 |
-| Why did orders-api return 503 after a configuration deployment? | INC-0134, INC-0206, INC-0002 | 229 |
-| Why is service authentication failing after certificate expiry? | INC-0003, INC-0027, INC-0135 | 136 |
-| What caused the queue backlog? | INC-0064, INC-0088, INC-0112 | 25 |
-| Why are payment requests timing out? | INC-0030, INC-0150, INC-0162 | 115 |
-| Why is storage full? | INC-0127, INC-0139, INC-0199 | 75 |
-| Why are DNS lookups failing after maintenance? | INC-0101, INC-0173, INC-0197 | 140 |
+| Why does orders-api return 503 during a traffic spike? | INC-0073, INC-0181, INC-0037 | 192 |
+| Why did orders-api return 503 after a configuration deployment? | INC-0182, INC-0290, INC-0002 | 240 |
+| Why is service authentication failing after certificate expiry? | INC-0219, INC-0111, INC-0003 | 147 |
+| What caused the queue backlog? | INC-0172, INC-0244, INC-0028 | 25 |
+| Why are payment requests timing out? | INC-0150, INC-0006, INC-0114 | 140 |
+| Why is storage full? | INC-0223, INC-0007, INC-0043 | 34 |
+| Why are DNS lookups failing after maintenance? | INC-0005, INC-0077, INC-0185 | 174 |
 
-Each question retrieved its expected incident family in the top three. Removing
-stopwords reduced the queue question from 275 to 25 matches with the same top
-IDs. OR matching can still produce broad hit counts for remaining common words;
-these are keyword matches, not counts of incidents judged relevant by an LLM.
+Each question retrieved its expected incident family in the top three. These
+results were rerun after expanding the dataset's scenarios and contexts. OR
+matching can still produce broad hit counts for remaining common words; these
+are keyword matches, not counts of incidents judged relevant by an LLM.
 
 ## Pending endpoint documentation
 
