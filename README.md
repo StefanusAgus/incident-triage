@@ -269,6 +269,37 @@ trace. Coverage also verifies SQLite persistence across application restarts and
 stored assist chat/output. No live OpenAI call was made during automated
 verification; provide a valid key/model to exercise the runtime call.
 
+## Streamlit UI
+
+Configure `LLM_API_KEY` and `LLM_MODEL`, then run FastAPI from the repository
+root in one Bash terminal:
+
+```bash
+uv sync --locked
+uv run python -m app.main
+```
+
+Ingest the dataset once from a second terminal, then start Streamlit:
+
+```bash
+curl -X POST http://127.0.0.1:8000/ingest
+uv run streamlit run ui/app.py
+```
+
+Streamlit opens the UI at http://localhost:8501. It calls the existing `/assist`
+and `/debug/trace/{correlation_id}` endpoints and does not duplicate backend
+retrieval or LLM logic. `API_BASE_URL` defaults to
+`http://127.0.0.1:8000`; override it in Bash when the API runs elsewhere:
+
+```bash
+API_BASE_URL=http://api-host:8000 uv run streamlit run ui/app.py
+```
+
+Each submission generates a new correlation ID. The latest assist result and
+trace remain in Streamlit session state across reruns. Refresh trace only calls
+the debug endpoint; it does not resubmit the assist request. Clear removes the
+saved result, trace, correlation ID, and form values.
+
 ## Remaining work
 
 The core assignment endpoints are implemented. See `TRADEOFFS.md` for known
