@@ -1,13 +1,16 @@
-"""Thin HTTP handlers for ingestion and incident details."""
+"""Thin HTTP handlers for ingestion, incident details, and search."""
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 
 from app.db.database import get_incident, get_session
 from app.ingest import ingest_incidents
-from app.schemas import IncidentRecord, IngestResult
+from app.schemas import IncidentRecord, IngestResult, SearchParams, SearchResponse
+from app.search import SearchQueryError, search_incidents
 
 router = APIRouter()
 
@@ -43,3 +46,13 @@ def incident_details(id: str, session: Session = Depends(get_session)) -> Incide
     if incident is None:
         raise HTTPException(status_code=404, detail=f"Incident '{id}' was not found.")
     return IncidentRecord.model_validate(incident)
+
+
+@router.get("/search", response_model=SearchResponse)
+def search(
+    params: Annotated[SearchParams, Query()], session: Session = Depends(get_session),
+) -> SearchResponse:
+    try:
+        return search_incidents(session, params)
+    except SearchQueryError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc

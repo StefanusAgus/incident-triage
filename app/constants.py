@@ -15,6 +15,21 @@ MAX_PORT = 65535
 MIN_MODEL_NAME_LENGTH = 1
 MIN_LLM_TIMEOUT = 0
 
+DEFAULT_SEARCH_LIMIT = 10
+MAX_SEARCH_LIMIT = 50
+MAX_SEARCH_QUERY_LENGTH = 500
+MAX_FILTER_VALUE_LENGTH = 100
+MAX_FILTER_TAGS = 10
+SEARCH_TITLE_WEIGHT = 5.0
+SEARCH_SNIPPET_TOKENS = 32
+MAX_SNIPPET_LENGTH = 240
+
+# Keep technical/causal words such as "not", "out", and "after" searchable.
+SEARCH_STOPWORDS = frozenset({
+    "a", "an", "are", "did", "do", "does", "how", "is", "the", "was", "were",
+    "what", "when", "where", "which", "who", "why",
+})
+
 
 class Environment(StrEnum):
     DEV = "dev"

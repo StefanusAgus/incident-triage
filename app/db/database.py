@@ -6,14 +6,15 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from fastapi import Request
-from sqlalchemy.engine import Engine, make_url
+from sqlalchemy.engine import Engine, RowMapping, make_url
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.pool import StaticPool
 from sqlalchemy import text
 from sqlmodel import Session, create_engine
 
 from app.db.models import Incident
-from app.schemas import IncidentRecord
+from app.constants import SEARCH_SNIPPET_TOKENS, SEARCH_TITLE_WEIGHT
+from app.schemas import IncidentFilters, IncidentRecord, SearchParams
 
 CREATE_INCIDENT_FTS_SQL = """
 CREATE VIRTUAL TABLE IF NOT EXISTS incident_fts USING fts5(
@@ -30,6 +31,18 @@ INSERT_INCIDENT_FTS_SQL = """
 INSERT INTO incident_fts (incident_id, title, description, resolution_summary, tags)
 VALUES (:incident_id, :title, :description, :resolution_summary, :tags)
 """
+
+SEARCH_SOURCE_SQL = """
+FROM incident_fts
+JOIN incidents AS i ON i.id = incident_fts.incident_id
+WHERE incident_fts MATCH :match_query
+"""
+SEARCH_RESULTS_SQL = """
+SELECT i.id, i.title,
+       snippet(incident_fts, 2, '', '', ' … ', :snippet_tokens) AS snippet,
+       bm25(incident_fts, 0.0, :title_weight) AS score
+"""
+SEARCH_ORDER_SQL = "ORDER BY score ASC, i.id ASC LIMIT :limit"
 
 
 def build_engine(database_url: str) -> Engine:
@@ -88,3 +101,37 @@ def replace_fts_entry(session: Session, record: IncidentRecord) -> None:
         "resolution_summary": record.resolution_summary,
         "tags": json.dumps(record.tags, ensure_ascii=False),
     })
+
+
+def build_search_filters(filters: IncidentFilters) -> tuple[str, dict[str, object]]:
+    """Build predicates from trusted column names; bind every caller value."""
+    clauses = []
+    values: dict[str, object] = {}
+    for field in ("environment", "service", "severity"):
+        value = getattr(filters, field)
+        if value is not None:
+            clauses.append(f"i.{field} = :{field}")
+            values[field] = value
+    for index, tag in enumerate(dict.fromkeys(filters.tags)):
+        parameter = f"tag_{index}"
+        clauses.append(
+            "EXISTS (SELECT 1 FROM json_each(i.tags) AS tag "
+            f"WHERE tag.value = :{parameter} COLLATE BINARY)"
+        )
+        values[parameter] = tag
+    return (" AND " + " AND ".join(clauses) if clauses else ""), values
+
+
+def query_search(
+    session: Session, match_query: str, params: SearchParams,
+) -> tuple[list[RowMapping], int]:
+    predicates, values = build_search_filters(params)
+    source = SEARCH_SOURCE_SQL + predicates
+    values["match_query"] = match_query
+    total = session.execute(text("SELECT count(*) " + source), values).scalar_one()
+    rows = session.execute(
+        text(SEARCH_RESULTS_SQL + source + " " + SEARCH_ORDER_SQL),
+        {**values, "limit": params.limit, "title_weight": SEARCH_TITLE_WEIGHT,
+         "snippet_tokens": SEARCH_SNIPPET_TOKENS},
+    ).mappings().all()
+    return list(rows), total
