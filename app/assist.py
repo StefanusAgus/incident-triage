@@ -2,10 +2,19 @@
 
 import json
 import re
+from time import monotonic
 from typing import Any
 
-from openai import APITimeoutError, OpenAI, OpenAIError
+from openai import (
+    APITimeoutError,
+    AuthenticationError,
+    NotFoundError,
+    OpenAI,
+    OpenAIError,
+    PermissionDeniedError,
+)
 from pydantic import ValidationError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 
 from app.config import Settings
@@ -64,6 +73,39 @@ def _record_evidence(record: IncidentRecord) -> tuple[str, ...]:
     )
 
 
+def _usage_summary(response: Any) -> dict[str, int]:
+    usage = getattr(response, "usage", None)
+    if usage is None:
+        return {}
+    return {
+        field: value
+        for field in ("input_tokens", "output_tokens", "total_tokens")
+        if isinstance((value := getattr(usage, field, None)), int)
+    }
+
+
+def _log_failure(
+    failed_step: str, exc: Exception, *, model: str | None = None,
+    duration_ms: float | None = None,
+) -> None:
+    summary: dict[str, object] = {
+        "failed_step": failed_step,
+        "error_type": type(exc).__name__,
+        "error_message": str(exc),
+    }
+    if model is not None:
+        summary["model"] = model
+    if duration_ms is not None:
+        summary["duration_ms"] = duration_ms
+    status_code = getattr(exc, "status_code", None)
+    request_id = getattr(exc, "request_id", None)
+    if status_code is not None:
+        summary["provider_status_code"] = status_code
+    if request_id is not None:
+        summary["provider_request_id"] = request_id
+    log_step("assist:error", **summary)
+
+
 def validate_grounding(output: AssistResponse, candidates: list[IncidentRecord]) -> None:
     candidates_by_id = {record.id: record for record in candidates}
     selected_ids = {item.incident_id for item in output.relevant_incidents}
@@ -97,12 +139,10 @@ def assist_incidents(
     request: AssistRequest,
     settings: Settings,
     client: Any | None = None,
-    correlation_id: str = "unknown",
 ) -> AssistResponse:
     """Retrieve up to ten records, then make exactly one structured model call."""
     filters = request.model_dump(exclude={"question"})
     log_step(
-        correlation_id,
         "tool:search",
         phase="input",
         query=request.question,
@@ -116,10 +156,19 @@ def assist_incidents(
         search_total = search_response.total
     except SearchQueryError:
         ranked_ids = []
+    except SQLAlchemyError as exc:
+        _log_failure("search", exc)
+        raise
 
-    candidates = [IncidentRecord.model_validate(record) for record in get_incidents(session, ranked_ids)]
+    try:
+        candidates = [
+            IncidentRecord.model_validate(record)
+            for record in get_incidents(session, ranked_ids)
+        ]
+    except (SQLAlchemyError, ValidationError) as exc:
+        _log_failure("search", exc)
+        raise
     log_step(
-        correlation_id,
         "tool:search",
         phase="output",
         hit_count=search_total,
@@ -131,7 +180,13 @@ def assist_incidents(
         "retrieved_incidents": [record.model_dump(mode="json") for record in candidates],
     }, ensure_ascii=False)
 
-    runtime_client = client if client is not None else create_openai_client(settings)
+    try:
+        runtime_client = client if client is not None else create_openai_client(settings)
+    except AssistConfigurationError as exc:
+        _log_failure("configuration", exc, model=settings.llm_model)
+        raise
+
+    model_started_at = monotonic()
     try:
         response = runtime_client.responses.parse(
             model=settings.llm_model,
@@ -142,41 +197,70 @@ def assist_incidents(
             store=False,
         )
     except APITimeoutError as exc:
-        raise AssistProviderError(
+        duration_ms = round((monotonic() - model_started_at) * 1000, 2)
+        error = AssistProviderError(
             "The OpenAI request timed out after bounded retries. Check LLM_TIMEOUT_SECONDS and retry."
-        ) from exc
+        )
+        _log_failure("model", exc, model=settings.llm_model, duration_ms=duration_ms)
+        raise error from exc
+    except (AuthenticationError, PermissionDeniedError, NotFoundError) as exc:
+        duration_ms = round((monotonic() - model_started_at) * 1000, 2)
+        error = AssistProviderError(
+            "OpenAI authentication or model access failed. Verify LLM_API_KEY, "
+            "LLM_MODEL, project permissions, and model availability."
+        )
+        _log_failure("model", exc, model=settings.llm_model, duration_ms=duration_ms)
+        raise error from exc
     except (OpenAIError, ValidationError) as exc:
-        raise AssistProviderError(
+        duration_ms = round((monotonic() - model_started_at) * 1000, 2)
+        error = AssistProviderError(
             "The OpenAI structured-output request failed. Check LLM_API_KEY, LLM_MODEL, and provider access."
-        ) from exc
+        )
+        _log_failure("model", exc, model=settings.llm_model, duration_ms=duration_ms)
+        raise error from exc
 
-    refusal = _find_refusal(response)
-    if refusal is not None:
-        raise AssistProviderError(f"The model refused the assist request: {refusal}")
-    response_status = getattr(response, "status", None)
-    message_incomplete = any(
-        getattr(item, "type", None) == "message" and getattr(item, "status", None) == "incomplete"
-        for item in getattr(response, "output", [])
-    )
-    if response_status == "incomplete" or message_incomplete:
-        details = getattr(response, "incomplete_details", None)
-        reason = getattr(details, "reason", None) or "unknown reason"
-        raise AssistProviderError(f"The model response was incomplete: {reason}.")
-    if response_status != "completed":
-        error = getattr(response, "error", None)
-        message = getattr(error, "message", None) or response_status or "unknown status"
-        raise AssistProviderError(f"The model response did not complete: {message}.")
-    output = getattr(response, "output_parsed", None)
-    if output is None:
-        raise AssistOutputError("The model did not return valid structured assist output.")
-    if not isinstance(output, AssistResponse):
-        try:
-            output = AssistResponse.model_validate(output)
-        except ValidationError as exc:
-            raise AssistOutputError("The model returned invalid structured assist output.") from exc
-    validate_grounding(output, candidates)
+    model_duration_ms = round((monotonic() - model_started_at) * 1000, 2)
     log_step(
-        correlation_id,
+        "assist:model",
+        model=settings.llm_model,
+        duration_ms=model_duration_ms,
+        usage=_usage_summary(response),
+    )
+
+    try:
+        refusal = _find_refusal(response)
+        if refusal is not None:
+            raise AssistProviderError(f"The model refused the assist request: {refusal}")
+        response_status = getattr(response, "status", None)
+        message_incomplete = any(
+            getattr(item, "type", None) == "message"
+            and getattr(item, "status", None) == "incomplete"
+            for item in getattr(response, "output", [])
+        )
+        if response_status == "incomplete" or message_incomplete:
+            details = getattr(response, "incomplete_details", None)
+            reason = getattr(details, "reason", None) or "unknown reason"
+            raise AssistProviderError(f"The model response was incomplete: {reason}.")
+        if response_status != "completed":
+            error = getattr(response, "error", None)
+            message = getattr(error, "message", None) or response_status or "unknown status"
+            raise AssistProviderError(f"The model response did not complete: {message}.")
+        output = getattr(response, "output_parsed", None)
+        if output is None:
+            raise AssistOutputError("The model did not return valid structured assist output.")
+        if not isinstance(output, AssistResponse):
+            try:
+                output = AssistResponse.model_validate(output)
+            except ValidationError as exc:
+                raise AssistOutputError(
+                    "The model returned invalid structured assist output."
+                ) from exc
+        validate_grounding(output, candidates)
+    except (AssistProviderError, AssistOutputError) as exc:
+        _log_failure("model_response", exc, model=settings.llm_model)
+        raise
+    log_step("assist:output", output=output.model_dump(mode="json"))
+    log_step(
         "assist:selected_incidents",
         selected_ids=[item.incident_id for item in output.relevant_incidents],
     )

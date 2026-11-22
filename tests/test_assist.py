@@ -1,7 +1,6 @@
 """Structured assist integration, grounding, and provider failure checks."""
 
 import json
-import logging
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -9,11 +8,13 @@ from typing import Any
 import pytest
 from fastapi.testclient import TestClient
 from pydantic import SecretStr
+from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 
 import app.assist as assist_module
 from app.config import Settings
 from app.constants import ASSIST_CANDIDATE_LIMIT, ASSIST_MAX_OUTPUT_TOKENS
+from app.db.models import CorrelationTrace
 from app.main import create_app
 from app.prompts import ASSIST_SYSTEM_PROMPT
 from app.schemas import AssistResponse
@@ -40,6 +41,7 @@ def completed(output: Any, *, items: list[Any] | None = None):
     return SimpleNamespace(
         status="completed", output_parsed=output, output=items or [],
         incomplete_details=None, error=None,
+        usage=SimpleNamespace(input_tokens=80, output_tokens=40, total_tokens=120),
     )
 
 
@@ -79,6 +81,22 @@ def grounded_output_from_call(kwargs: dict[str, Any]) -> AssistResponse:
 
 def install_fake(monkeypatch, fake: FakeClient) -> None:
     monkeypatch.setattr(assist_module, "create_openai_client", lambda settings: fake)
+
+
+def error_message(response) -> str:
+    detail = response.json()["detail"]
+    assert detail["correlation_id"] == response.headers["X-Correlation-ID"]
+    return detail["message"]
+
+
+def stdout_events(capsys, correlation_id: str) -> list[dict[str, Any]]:
+    return [
+        event
+        for line in capsys.readouterr().out.splitlines()
+        if line.strip()
+        for event in [json.loads(line)]
+        if event["correlation_id"] == correlation_id
+    ]
 
 
 def test_assist_retrieves_full_records_and_makes_one_structured_call(assist_app, monkeypatch) -> None:
@@ -145,7 +163,8 @@ def test_invalid_grounding_is_rejected(assist_app, monkeypatch, invalid_kind: st
     install_fake(monkeypatch, fake)
     response = client.post("/assist", json={"question": "database connection pool HTTP 503"})
     assert response.status_code == 502
-    assert "retrieved evidence" in response.json()["detail"] or "does not occur" in response.json()["detail"]
+    message = error_message(response)
+    assert "retrieved evidence" in message or "does not occur" in message
 
 
 def test_refusal_is_explicit(assist_app, monkeypatch) -> None:
@@ -156,7 +175,7 @@ def test_refusal_is_explicit(assist_app, monkeypatch) -> None:
     install_fake(monkeypatch, fake)
     response = client.post("/assist", json={"question": "database timeout"})
     assert response.status_code == 502
-    assert "refused" in response.json()["detail"]
+    assert "refused" in error_message(response)
 
 
 def test_incomplete_response_is_explicit(assist_app, monkeypatch) -> None:
@@ -168,7 +187,7 @@ def test_incomplete_response_is_explicit(assist_app, monkeypatch) -> None:
     install_fake(monkeypatch, fake)
     response = client.post("/assist", json={"question": "database timeout"})
     assert response.status_code == 502
-    assert "max_output_tokens" in response.json()["detail"]
+    assert "max_output_tokens" in error_message(response)
 
 
 def test_missing_parsed_output_is_explicit(assist_app, monkeypatch) -> None:
@@ -177,7 +196,7 @@ def test_missing_parsed_output_is_explicit(assist_app, monkeypatch) -> None:
     install_fake(monkeypatch, fake)
     response = client.post("/assist", json={"question": "database timeout"})
     assert response.status_code == 502
-    assert "structured assist output" in response.json()["detail"]
+    assert "structured assist output" in error_message(response)
 
 
 def test_invalid_structured_output_is_rejected(assist_app, monkeypatch) -> None:
@@ -188,7 +207,7 @@ def test_invalid_structured_output_is_rejected(assist_app, monkeypatch) -> None:
     install_fake(monkeypatch, fake)
     response = client.post("/assist", json={"question": "database timeout"})
     assert response.status_code == 502
-    assert "invalid structured assist output" in response.json()["detail"]
+    assert "invalid structured assist output" in error_message(response)
 
 
 def test_out_of_scope_status_declines_without_incidents(assist_app, monkeypatch) -> None:
@@ -220,8 +239,9 @@ def test_other_endpoints_work_without_key_and_assist_explains_configuration(tmp_
         assert client.get("/search", params={"q": "database"}).status_code == 200
         response = client.post("/assist", json={"question": "database timeout"})
         assert response.status_code == 503
-        assert "LLM_API_KEY" in response.json()["detail"]
-        assert "LLM_MODEL" in response.json()["detail"]
+        message = error_message(response)
+        assert "LLM_API_KEY" in message
+        assert "LLM_MODEL" in message
 
 
 def test_client_uses_explicit_timeout_and_bounded_sdk_retries(monkeypatch) -> None:
@@ -241,28 +261,55 @@ def test_client_uses_explicit_timeout_and_bounded_sdk_retries(monkeypatch) -> No
 
 
 def test_assist_logs_search_steps_and_selected_ids_with_correlation_id(
-    assist_app, monkeypatch, caplog,
+    assist_app, monkeypatch, capsys,
 ) -> None:
-    client, _, _ = assist_app
+    client, app, _ = assist_app
     fake = FakeClient(lambda kwargs: completed(grounded_output_from_call(kwargs)))
     install_fake(monkeypatch, fake)
-    with caplog.at_level(logging.INFO, logger="incident_triage"):
-        response = client.post(
-            "/assist",
-            json={"question": "database connection pool HTTP 503"},
-            headers={"X-Correlation-ID": "test-correlation-123"},
-        )
+    response = client.post(
+        "/assist",
+        json={"question": "database connection pool HTTP 503"},
+        headers={"X-Correlation-ID": "test-correlation-123"},
+    )
     assert response.status_code == 200
     assert response.headers["X-Correlation-ID"] == "test-correlation-123"
-    events = [json.loads(record.message) for record in caplog.records]
+    events = stdout_events(capsys, "test-correlation-123")
     assert [event["step"] for event in events] == [
-        "tool:search", "tool:search", "assist:selected_incidents",
+        "request:start", "tool:search", "tool:search", "assist:model",
+        "assist:output", "assist:selected_incidents", "request:complete",
     ]
     assert all(event["correlation_id"] == "test-correlation-123" for event in events)
-    assert events[0]["phase"] == "input"
-    assert events[1]["phase"] == "output"
-    assert events[1]["hit_count"] >= len(events[1]["top_ids"])
-    assert events[2]["selected_ids"] == [response.json()["relevant_incidents"][0]["incident_id"]]
+    assert events[1]["phase"] == "input"
+    assert events[2]["phase"] == "output"
+    assert events[2]["hit_count"] >= len(events[2]["top_ids"])
+    assert events[3]["model"] == "test-model"
+    assert events[3]["duration_ms"] >= 0
+    assert events[3]["usage"] == {
+        "input_tokens": 80, "output_tokens": 40, "total_tokens": 120,
+    }
+    assert events[4]["output"] == response.json()
+    assert events[5]["selected_ids"] == [response.json()["relevant_incidents"][0]["incident_id"]]
+    assert events[6]["status_code"] == 200
+
+    stored_response = client.get("/debug/trace/test-correlation-123")
+    assert stored_response.status_code == 200
+    stored = stored_response.json()
+    assert stored["events"] == events
+    assert stored["chat_history"] == [
+        {
+            "role": "user",
+            "content": {
+                "environment": None,
+                "service": None,
+                "severity": None,
+                "tags": [],
+                "question": "database connection pool HTTP 503",
+            },
+        },
+        {"role": "assistant", "content": response.json()},
+    ]
+    with Session(app.state.engine) as session:
+        assert session.get(CorrelationTrace, "test-correlation-123") is not None
 
 
 def test_invalid_correlation_id_is_replaced(assist_app) -> None:
@@ -270,3 +317,69 @@ def test_invalid_correlation_id_is_replaced(assist_app) -> None:
     response = client.get("/health", headers={"X-Correlation-ID": "bad value with spaces"})
     assert response.status_code == 200
     assert response.headers["X-Correlation-ID"] != "bad value with spaces"
+
+
+def test_timeout_is_actionable_and_logs_failed_model_step(
+    assist_app, monkeypatch, capsys,
+) -> None:
+    client, _, _ = assist_app
+
+    class ControlledTimeout(Exception):
+        pass
+
+    monkeypatch.setattr(assist_module, "APITimeoutError", ControlledTimeout)
+    install_fake(monkeypatch, FakeClient(lambda kwargs: (_ for _ in ()).throw(
+        ControlledTimeout("controlled timeout"),
+    )))
+    response = client.post(
+        "/assist",
+        json={"question": "database timeout"},
+        headers={"X-Correlation-ID": "timeout-test"},
+    )
+    assert response.status_code == 502
+    assert "LLM_TIMEOUT_SECONDS" in error_message(response)
+    events = stdout_events(capsys, "timeout-test")
+    failure = next(event for event in events if event["step"] == "assist:error")
+    assert failure["failed_step"] == "model"
+    assert failure["model"] == "test-model"
+    assert failure["duration_ms"] >= 0
+    assert all(event["correlation_id"] == "timeout-test" for event in events)
+
+
+def test_model_access_failure_is_actionable(assist_app, monkeypatch) -> None:
+    client, _, _ = assist_app
+
+    class ControlledAccessError(Exception):
+        pass
+
+    monkeypatch.setattr(assist_module, "AuthenticationError", ControlledAccessError)
+    install_fake(monkeypatch, FakeClient(lambda kwargs: (_ for _ in ()).throw(
+        ControlledAccessError("do not expose this provider detail"),
+    )))
+    response = client.post("/assist", json={"question": "database timeout"})
+    assert response.status_code == 502
+    message = error_message(response)
+    assert "authentication or model access failed" in message
+    assert "do not expose" not in message
+
+
+def test_search_failure_is_not_disguised_as_empty_evidence(
+    assist_app, monkeypatch, capsys,
+) -> None:
+    client, _, _ = assist_app
+    monkeypatch.setattr(
+        assist_module,
+        "search_incidents",
+        lambda session, params: (_ for _ in ()).throw(SQLAlchemyError("controlled")),
+    )
+    response = client.post(
+        "/assist",
+        json={"question": "database timeout"},
+        headers={"X-Correlation-ID": "search-failure-test"},
+    )
+    assert response.status_code == 503
+    assert "Incident search failed" in error_message(response)
+    events = stdout_events(capsys, "search-failure-test")
+    failure = next(event for event in events if event["step"] == "assist:error")
+    assert failure["failed_step"] == "search"
+    assert all(event["correlation_id"] == "search-failure-test" for event in events)

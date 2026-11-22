@@ -221,14 +221,41 @@ padding selections.
 
 The server rejects selected or text-cited IDs outside the retrieved candidates.
 Every supporting excerpt must occur in the cited record's title, description,
-resolution summary, or tags. Provider failures—including timeout, refusal, and
-incomplete responses—and invalid structured output return HTTP 502. A missing
-key returns HTTP 503 with configuration guidance.
+resolution summary, or tags. Provider failures—including authentication/model
+access, timeout, refusal, and incomplete responses—and invalid structured output
+return HTTP 502. A missing key or search/storage failure returns HTTP 503 with
+actionable guidance. Error bodies and response headers include the correlation
+ID; provider details and stack traces remain in server-side diagnostics.
 
 Every request accepts or generates `X-Correlation-ID` and echoes it in the
-response. Assist emits compact JSON logs for `tool:search` input/output and the
-selected IDs; each log includes that correlation ID. Invalid correlation IDs
-are replaced rather than written to logs.
+response. Supplied IDs may contain letters, numbers, `.`, `_`, and `-`, up to
+128 characters; invalid values are replaced rather than written to logs. A
+request-scoped context safely adds the ID to every application JSON event.
+Uncorrelated Uvicorn access logs are disabled. Assist logs request start/end,
+`tool:search` input/output, selected IDs, model, call duration, and token usage
+when the provider supplies it. Failures record the failed step and safe provider
+metadata without logging the API key. Every assist step, including the final
+structured `assist:output`, is written as JSON to stdout.
+
+Inspect a stored request trace:
+
+```bash
+curl http://127.0.0.1:8000/health \
+  -H 'X-Correlation-ID: debug-demo-001'
+curl http://127.0.0.1:8000/debug/trace/debug-demo-001
+```
+
+`GET /debug/trace/{correlation_id}` returns the JSON events currently retained
+for that ID plus its assist chat history, or 404 when none are present. SQLite
+stores one `correlation_traces` row per ID, with `events` and `chat_history` JSON
+arrays. Reusing an ID appends new requests and assist exchanges. The latest 100
+events per ID are retained; chat history is not currently pruned. Records survive
+server restarts. Startup writes an `observability:ready` JSON message to stdout
+with the header name and trace endpoint.
+
+The debug route is intentionally basic and unauthenticated for this local
+take-home application. Restrict or disable it before exposing the API publicly,
+because traces include user questions and structured assist responses.
 
 ```bash
 uv run pytest tests/test_assist.py
@@ -236,8 +263,10 @@ uv run pytest tests/test_assist.py
 
 Tests mock the provider and cover the one-call contract, full/empty evidence,
 all three statuses, invalid IDs and excerpts, invalid structured output,
-refusal/incomplete responses, timeout/retry configuration, missing-key behavior,
-and correlation-aware logs. No live OpenAI call was made during automated
+refusal/incomplete responses, timeout/retry configuration, missing-key,
+authentication/model access, search failure, and an end-to-end correlated log
+trace. Coverage also verifies SQLite persistence across application restarts and
+stored assist chat/output. No live OpenAI call was made during automated
 verification; provide a valid key/model to exercise the runtime call.
 
 ## Remaining work

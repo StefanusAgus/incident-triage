@@ -30,6 +30,7 @@ ASSIST_MAX_OUTPUT_TOKENS = 1200
 MAX_ASSIST_QUESTION_LENGTH = 1000
 CORRELATION_ID_HEADER = "X-Correlation-ID"
 MAX_CORRELATION_ID_LENGTH = 128
+MAX_TRACE_EVENTS_PER_ID = 100
 
 # Keep technical/causal words such as "not", "out", and "after" searchable.
 SEARCH_STOPWORDS = frozenset({

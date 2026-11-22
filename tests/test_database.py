@@ -13,7 +13,7 @@ from sqlmodel import Session, select
 from app.config import Settings
 from app.db.database import build_engine, get_session, initialize_database
 from app.main import create_app
-from app.db.models import Incident
+from app.db.models import CorrelationTrace, Incident
 from app.schemas import IncidentRecord
 
 
@@ -32,6 +32,7 @@ def test_schema_initialization_is_repeatable_and_fts5_works(tmp_path: Path) -> N
         initialize_database(engine)
         initialize_database(engine)
         assert "incidents" in inspect(engine).get_table_names()
+        assert "correlation_traces" in inspect(engine).get_table_names()
         with engine.begin() as connection:
             assert connection.exec_driver_sql("SELECT count(*) FROM incidents").scalar_one() == 0
             assert connection.exec_driver_sql("SELECT count(*) FROM incident_fts").scalar_one() == 0

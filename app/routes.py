@@ -7,7 +7,7 @@ from pydantic import ValidationError
 from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 
-from app.db.database import get_incident, get_session
+from app.db.database import get_correlation_trace, get_incident, get_session
 from app.assist import (
     AssistConfigurationError,
     AssistOutputError,
@@ -15,10 +15,51 @@ from app.assist import (
     assist_incidents,
 )
 from app.ingest import ingest_incidents
-from app.schemas import AssistRequest, AssistResponse, IncidentRecord, IngestResult, SearchParams, SearchResponse
+from app.observability import is_valid_correlation_id
+from app.schemas import (
+    AssistRequest,
+    AssistResponse,
+    IncidentRecord,
+    IngestResult,
+    SearchParams,
+    SearchResponse,
+    TraceResponse,
+)
 from app.search import SearchQueryError, search_incidents
 
 router = APIRouter()
+
+
+def _error_detail(request: Request, message: str) -> dict[str, str]:
+    return {
+        "message": message,
+        "correlation_id": request.state.correlation_id,
+    }
+
+
+@router.get("/debug/trace/{correlation_id}", response_model=TraceResponse)
+def debug_trace(
+    correlation_id: str, session: Session = Depends(get_session),
+) -> TraceResponse:
+    if not is_valid_correlation_id(correlation_id):
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "Correlation ID must contain only letters, numbers, '.', '_', "
+                "or '-' and be at most 128 characters."
+            ),
+        )
+    trace = get_correlation_trace(session, correlation_id)
+    if trace is None:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No stored trace was found for correlation ID '{correlation_id}'.",
+        )
+    return TraceResponse(
+        correlation_id=correlation_id,
+        events=trace.events,
+        chat_history=trace.chat_history,
+    )
 
 
 @router.post("/ingest", response_model=IngestResult)
@@ -68,12 +109,45 @@ def search(
 def assist(
     body: AssistRequest, request: Request, session: Session = Depends(get_session),
 ) -> AssistResponse:
+    request.state.chat_messages.append({
+        "role": "user",
+        "content": body.model_dump(mode="json"),
+    })
     try:
-        return assist_incidents(
+        result = assist_incidents(
             session, body, request.app.state.settings,
-            correlation_id=request.state.correlation_id,
         )
+        request.state.chat_messages.append({
+            "role": "assistant",
+            "content": result.model_dump(mode="json"),
+        })
+        return result
     except AssistConfigurationError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        request.state.chat_messages.append({
+            "role": "assistant", "content": {"error": str(exc)},
+        })
+        raise HTTPException(
+            status_code=503, detail=_error_detail(request, str(exc)),
+        ) from exc
     except (AssistProviderError, AssistOutputError) as exc:
-        raise HTTPException(status_code=502, detail=str(exc)) from exc
+        request.state.chat_messages.append({
+            "role": "assistant", "content": {"error": str(exc)},
+        })
+        raise HTTPException(
+            status_code=502, detail=_error_detail(request, str(exc)),
+        ) from exc
+    except SQLAlchemyError as exc:
+        message = (
+            "Incident search failed. Check SQLite database access and FTS5 "
+            "initialization, then retry."
+        )
+        request.state.chat_messages.append({
+            "role": "assistant", "content": {"error": message},
+        })
+        raise HTTPException(
+            status_code=503,
+            detail=_error_detail(
+                request,
+                message,
+            ),
+        ) from exc

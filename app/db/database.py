@@ -3,7 +3,9 @@
 import json
 from collections.abc import Iterator
 from contextlib import contextmanager
+from datetime import datetime, timezone
 from pathlib import Path
+from typing import Any
 
 from fastapi import Request
 from sqlalchemy.engine import Engine, RowMapping, make_url
@@ -12,8 +14,12 @@ from sqlalchemy.pool import StaticPool
 from sqlalchemy import text
 from sqlmodel import Session, create_engine, select
 
-from app.db.models import Incident
-from app.constants import SEARCH_SNIPPET_TOKENS, SEARCH_TITLE_WEIGHT
+from app.db.models import CorrelationTrace, Incident
+from app.constants import (
+    MAX_TRACE_EVENTS_PER_ID,
+    SEARCH_SNIPPET_TOKENS,
+    SEARCH_TITLE_WEIGHT,
+)
 from app.schemas import IncidentFilters, IncidentRecord, SearchParams
 
 CREATE_INCIDENT_FTS_SQL = """
@@ -76,6 +82,7 @@ def initialize_database(engine: Engine) -> None:
 def get_session(request: Request) -> Iterator[Session]:
     """One session per request; close and roll back uncommitted work on exit."""
     with Session(request.app.state.engine) as session:
+        request.state.db_session = session
         yield session
 
 
@@ -98,6 +105,40 @@ def get_incidents(session: Session, incident_ids: list[str]) -> list[Incident]:
     records = session.exec(select(Incident).where(Incident.id.in_(incident_ids))).all()
     by_id = {record.id: record for record in records}
     return [by_id[incident_id] for incident_id in incident_ids if incident_id in by_id]
+
+
+def get_correlation_trace(
+    session: Session, correlation_id: str,
+) -> CorrelationTrace | None:
+    return session.get(CorrelationTrace, correlation_id)
+
+
+def save_correlation_trace(
+    engine: Engine,
+    correlation_id: str,
+    events: list[dict[str, object]],
+    chat_messages: list[dict[str, Any]],
+) -> None:
+    """Upsert one completed request trace and append any assist messages."""
+    now = datetime.now(timezone.utc)
+    with Session(engine) as session:
+        trace = session.get(CorrelationTrace, correlation_id)
+        if trace is None:
+            trace = CorrelationTrace(
+                correlation_id=correlation_id,
+                events=events[-MAX_TRACE_EVENTS_PER_ID:],
+                chat_history=chat_messages,
+                created_at=now,
+                updated_at=now,
+            )
+        else:
+            trace.events = [
+                *trace.events, *events,
+            ][-MAX_TRACE_EVENTS_PER_ID:]
+            trace.chat_history = [*trace.chat_history, *chat_messages]
+            trace.updated_at = now
+        session.add(trace)
+        session.commit()
 
 
 def replace_fts_entry(session: Session, record: IncidentRecord) -> None:

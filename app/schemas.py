@@ -1,7 +1,7 @@
 """Validation contracts shared by dataset loading and future API boundaries."""
 
 from datetime import datetime, timezone
-from typing import Annotated
+from typing import Annotated, Any
 from enum import StrEnum
 
 from pydantic import (
@@ -112,6 +112,12 @@ class SearchResult(BaseModel):
 class SearchResponse(BaseModel):
     results: list[SearchResult]
     total: int
+
+
+class TraceResponse(BaseModel):
+    correlation_id: str
+    events: list[dict[str, Any]]
+    chat_history: list[dict[str, Any]]
 
 
 class AssistStatus(StrEnum):
