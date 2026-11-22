@@ -9,9 +9,11 @@ from app.constants import (
     DEFAULT_DATABASE_URL,
     DEFAULT_DATA_PATH,
     DEFAULT_LLM_MODEL,
+    DEFAULT_LLM_MAX_RETRIES,
     DEFAULT_LLM_TIMEOUT_SECONDS,
     DEFAULT_PORT,
     MAX_LLM_TIMEOUT_SECONDS,
+    MAX_LLM_MAX_RETRIES,
     MAX_PORT,
     MIN_LLM_TIMEOUT,
     MIN_MODEL_NAME_LENGTH,
@@ -30,6 +32,7 @@ class Settings(BaseSettings):
         gt=MIN_LLM_TIMEOUT,
         le=MAX_LLM_TIMEOUT_SECONDS,
     )
+    llm_max_retries: int = Field(default=DEFAULT_LLM_MAX_RETRIES, ge=0, le=MAX_LLM_MAX_RETRIES)
     database_url: str = DEFAULT_DATABASE_URL
     data_path: Path = Path(DEFAULT_DATA_PATH)
     port: int = Field(default=DEFAULT_PORT, ge=MIN_PORT, le=MAX_PORT)

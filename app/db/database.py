@@ -10,7 +10,7 @@ from sqlalchemy.engine import Engine, RowMapping, make_url
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.pool import StaticPool
 from sqlalchemy import text
-from sqlmodel import Session, create_engine
+from sqlmodel import Session, create_engine, select
 
 from app.db.models import Incident
 from app.constants import SEARCH_SNIPPET_TOKENS, SEARCH_TITLE_WEIGHT
@@ -89,6 +89,15 @@ def ingest_transaction(session: Session) -> Iterator[None]:
 
 def get_incident(session: Session, incident_id: str) -> Incident | None:
     return session.get(Incident, incident_id)
+
+
+def get_incidents(session: Session, incident_ids: list[str]) -> list[Incident]:
+    """Fetch full records in caller-provided rank order."""
+    if not incident_ids:
+        return []
+    records = session.exec(select(Incident).where(Incident.id.in_(incident_ids))).all()
+    by_id = {record.id: record for record in records}
+    return [by_id[incident_id] for incident_id in incident_ids if incident_id in by_id]
 
 
 def replace_fts_entry(session: Session, record: IncidentRecord) -> None:

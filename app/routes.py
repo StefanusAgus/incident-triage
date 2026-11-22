@@ -8,8 +8,14 @@ from sqlalchemy.exc import SQLAlchemyError
 from sqlmodel import Session
 
 from app.db.database import get_incident, get_session
+from app.assist import (
+    AssistConfigurationError,
+    AssistOutputError,
+    AssistProviderError,
+    assist_incidents,
+)
 from app.ingest import ingest_incidents
-from app.schemas import IncidentRecord, IngestResult, SearchParams, SearchResponse
+from app.schemas import AssistRequest, AssistResponse, IncidentRecord, IngestResult, SearchParams, SearchResponse
 from app.search import SearchQueryError, search_incidents
 
 router = APIRouter()
@@ -56,3 +62,18 @@ def search(
         return search_incidents(session, params)
     except SearchQueryError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.post("/assist", response_model=AssistResponse)
+def assist(
+    body: AssistRequest, request: Request, session: Session = Depends(get_session),
+) -> AssistResponse:
+    try:
+        return assist_incidents(
+            session, body, request.app.state.settings,
+            correlation_id=request.state.correlation_id,
+        )
+    except AssistConfigurationError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except (AssistProviderError, AssistOutputError) as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc

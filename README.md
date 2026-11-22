@@ -1,7 +1,7 @@
 # Incident Triage
 
-FastAPI incident ingestion, details, and keyword search API with validated
-contracts and a SQLite/FTS5 store for `incident-triage-take-home.md`. Assist is pending.
+FastAPI incident ingestion, details, keyword search, and grounded AI assist API
+with validated contracts and a SQLite/FTS5 store for `incident-triage-take-home.md`.
 The module boundaries and working rules are in `AGENTS.md`.
 
 ## Run (Bash)
@@ -27,8 +27,10 @@ uv run pytest
 
 Settings load from environment variables or `.env` through `app/config.py`.
 `LLM_API_KEY` is secret, `LLM_MODEL` selects the model, and
-`LLM_TIMEOUT_SECONDS` sets the future LLM call timeout. The scaffold needs no
-API key and makes no LLM calls. `DATABASE_URL` selects the SQLite store, defaulting
+`LLM_TIMEOUT_SECONDS` sets the OpenAI call timeout. `LLM_MAX_RETRIES` defaults
+to 2 and is capped at 5; the official SDK applies bounded exponential backoff.
+`POST /assist` requires `LLM_API_KEY` and access to `LLM_MODEL`. Startup, health,
+ingest, details, and search remain usable without a key. `DATABASE_URL` selects the SQLite store, defaulting
 to `sqlite:///./data/incidents.db`. Startup creates missing parent directories
 and initializes empty tables. `PORT` defaults to 8000.
 `DATA_PATH` selects the ingest source, defaulting to `data/incidents.json`.
@@ -187,9 +189,58 @@ results were rerun after expanding the dataset's scenarios and contexts. OR
 matching can still produce broad hit counts for remaining common words; these
 are keyword matches, not counts of incidents judged relevant by an LLM.
 
-## Pending endpoint documentation
+## Assist
 
-`POST /assist` is not implemented. Its curl example and grounding checks will
-be added alongside the implementation. The minimum query/filter unit tests
-are covered by the search tests. See
-`TRADEOFFS.md` for status and `AI-NOTES.md` for validation.
+Set `LLM_API_KEY` and `LLM_MODEL` in `.env`, start the server, and ingest the
+dataset. Then call:
+
+```bash
+curl -X POST http://127.0.0.1:8000/assist \
+  -H 'Content-Type: application/json' \
+  -H 'X-Correlation-ID: demo-assist-001' \
+  -d '{
+    "question": "Why is orders-api returning HTTP 503 during traffic spikes?",
+    "environment": "prod",
+    "service": "orders-api",
+    "severity": "SEV2",
+    "tags": ["database", "connection-pool"]
+  }'
+```
+
+Filters use the same semantics as `/search`. The fixed workflow retrieves up to
+10 ranked IDs through `search_incidents`, loads their full records, and makes
+exactly one OpenAI Responses API call with `AssistResponse` as the structured
+Pydantic format. Even zero retrieved records are sent to the model.
+
+The response status is `answered`, `insufficient_evidence`, or `out_of_scope`.
+It contains selected incidents with reasons and short verbatim excerpts, proposed
+next-step checks, a short customer-facing draft, an explanation, and targeted
+questions when evidence is insufficient. Runtime instructions prefer 3–5
+incidents when supported, allow fewer when evidence is limited, and forbid
+padding selections.
+
+The server rejects selected or text-cited IDs outside the retrieved candidates.
+Every supporting excerpt must occur in the cited record's title, description,
+resolution summary, or tags. Provider failures—including timeout, refusal, and
+incomplete responses—and invalid structured output return HTTP 502. A missing
+key returns HTTP 503 with configuration guidance.
+
+Every request accepts or generates `X-Correlation-ID` and echoes it in the
+response. Assist emits compact JSON logs for `tool:search` input/output and the
+selected IDs; each log includes that correlation ID. Invalid correlation IDs
+are replaced rather than written to logs.
+
+```bash
+uv run pytest tests/test_assist.py
+```
+
+Tests mock the provider and cover the one-call contract, full/empty evidence,
+all three statuses, invalid IDs and excerpts, invalid structured output,
+refusal/incomplete responses, timeout/retry configuration, missing-key behavior,
+and correlation-aware logs. No live OpenAI call was made during automated
+verification; provide a valid key/model to exercise the runtime call.
+
+## Remaining work
+
+The core assignment endpoints are implemented. See `TRADEOFFS.md` for known
+limits and `AI-NOTES.md` for actual validation evidence.
