@@ -11,12 +11,15 @@ Use `incident-triage-take-home.md` as the assignment;
   workflow avoids agent complexity: retrieve through the shared search path,
   log `tool:search`, then call the LLM. JSON logs avoid an observability service;
   Swagger UI defers a dedicated frontend.
-- Keep `app/main.py` small. Separate `config.py`, `models.py` (persistence),
-  `schemas.py` (API validation), `database.py`, `ingest.py`, `search.py`,
-  `assist.py`, and `observability.py`. Keep tests in `tests/`.
+- Keep `app/main.py` small. Consolidate persistence in `app/db/`: `models.py`
+  for SQLModel tables and `database.py` for engines, sessions, initialization,
+  and SQL queries. Keep `schemas.py` for API validation separate, alongside
+  `config.py`, `ingest.py`, `search.py`, `assist.py`, and `observability.py`.
+  Keep tests in `tests/`.
 - Store constants/static values in `app/constants.py`, environment-backed
   settings in `app/config.py`, and LLM instructions as a named multiline string
-  in `app/prompts.py`. Never embed secrets or hardcode the runtime model.
+  in `app/prompts.py`. Keep SQL queries in `app/db/database.py`, not
+  `constants.py`. Never embed secrets or hardcode the runtime model.
 
 ## Required quality as features are implemented
 
