@@ -1,0 +1,4502 @@
+[
+  {
+    "id": "INC-0001",
+    "created_at": "2026-01-22T14:50:25Z",
+    "environment": "dev",
+    "service": "inventory-api",
+    "severity": "SEV3",
+    "title": "Database connection exhaustion causes inventory-api failures",
+    "description": "Requests failed with connection acquisition timeouts during a traffic spike. Connections were not released after exceptions in request handlers.",
+    "resolution_summary": "Fixed connection cleanup in the exception handler, restarted affected instances, and verified pool usage recovered.",
+    "tags": [
+      "database",
+      "connection-pool",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0002",
+    "created_at": "2026-01-28T02:17:37Z",
+    "environment": "dev",
+    "service": "orders-api",
+    "severity": "SEV4",
+    "title": "orders-api returns 503 after configuration deployment",
+    "description": "The rollout stalled with HTTP 503 responses and database host lookup failures. The database hostname in the new configuration was incorrect.",
+    "resolution_summary": "Restored the correct database hostname and redeployed. Readiness checks and database connectivity passed.",
+    "tags": [
+      "configuration",
+      "deployment",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0003",
+    "created_at": "2026-01-06T18:51:54Z",
+    "environment": "dev",
+    "service": "auth-service",
+    "severity": "SEV1",
+    "title": "Service authentication fails after certificate expiry in auth-service",
+    "description": "Service-to-service requests failed with certificate-expired errors. The client certificate had not been renewed before expiry.",
+    "resolution_summary": "Renewed the client certificate, reloaded the service, and verified successful TLS authentication.",
+    "tags": [
+      "authentication",
+      "certificate",
+      "tls"
+    ]
+  },
+  {
+    "id": "INC-0004",
+    "created_at": "2026-02-08T14:39:02Z",
+    "environment": "prod",
+    "service": "billing-worker",
+    "severity": "SEV2",
+    "title": "Insufficient billing-worker consumers delay queued jobs",
+    "description": "Queued jobs were delayed while worker CPU usage stayed near capacity. The consumer replica count was too low for the incoming message rate.",
+    "resolution_summary": "Increased consumer replicas within downstream capacity, drained the queue, and configured scaling on queue age.",
+    "tags": [
+      "queue",
+      "backlog",
+      "worker-capacity"
+    ]
+  },
+  {
+    "id": "INC-0005",
+    "created_at": "2026-05-28T08:17:55Z",
+    "environment": "qa",
+    "service": "orders-api",
+    "severity": "SEV4",
+    "title": "Stale resolver configuration causes DNS errors in orders-api",
+    "description": "DNS queries timed out even though target services were healthy. The resolver configuration still referenced a DNS server removed during maintenance.",
+    "resolution_summary": "Removed the retired DNS server from resolver configuration, reloaded affected instances, and verified repeated name lookups.",
+    "tags": [
+      "dns",
+      "network",
+      "timeout"
+    ]
+  },
+  {
+    "id": "INC-0006",
+    "created_at": "2026-01-31T04:35:13Z",
+    "environment": "qa",
+    "service": "checkout-api",
+    "severity": "SEV2",
+    "title": "Payment provider connections time out in checkout-api",
+    "description": "Payment authorization attempts timed out before a connection was established. An egress firewall rule blocked the payment provider's documented address range.",
+    "resolution_summary": "Restored the payment provider egress allowlist and verified connectivity. Reconciled payment statuses before retrying unresolved authorizations.",
+    "tags": [
+      "payment",
+      "timeout",
+      "firewall"
+    ]
+  },
+  {
+    "id": "INC-0007",
+    "created_at": "2026-01-19T18:43:51Z",
+    "environment": "stage",
+    "service": "billing-worker",
+    "severity": "SEV2",
+    "title": "Unrotated logs fill the billing-worker data volume",
+    "description": "Jobs failed with no-space-left-on-device errors. Log rotation was disabled, allowing local application logs to fill the volume.",
+    "resolution_summary": "Archived and removed expired application logs, restored log rotation, and verified free space and successful writes.",
+    "tags": [
+      "storage",
+      "disk-full",
+      "log-rotation"
+    ]
+  },
+  {
+    "id": "INC-0008",
+    "created_at": "2026-03-31T05:04:30Z",
+    "environment": "dev",
+    "service": "pricing-api",
+    "severity": "SEV3",
+    "title": "Synchronized cache expiry increases pricing-api latency",
+    "description": "A sudden drop in cache hit rate coincided with slow responses and database load. Popular cache entries used identical expiration times, triggering concurrent refreshes.",
+    "resolution_summary": "Added expiration jitter and single-flight cache refresh, warmed popular entries, and verified database load stabilized.",
+    "tags": [
+      "cache",
+      "latency",
+      "database"
+    ]
+  },
+  {
+    "id": "INC-0009",
+    "created_at": "2026-05-01T02:30:39Z",
+    "environment": "stage",
+    "service": "sync-worker",
+    "severity": "SEV4",
+    "title": "Immediate retries amplify provider rate limits in sync-worker",
+    "description": "The external provider returned HTTP 429 while retry volume continued rising. The retry loop ignored Retry-After and had no backoff or concurrency cap.",
+    "resolution_summary": "Honored Retry-After, added exponential backoff with jitter, capped concurrency, and verified delivery recovered within provider limits.",
+    "tags": [
+      "rate-limit",
+      "retry",
+      "http-429"
+    ]
+  },
+  {
+    "id": "INC-0010",
+    "created_at": "2026-05-09T09:42:37Z",
+    "environment": "qa",
+    "service": "reports-worker",
+    "severity": "SEV3",
+    "title": "Large export exhausts memory in reports-worker",
+    "description": "Large export jobs were killed when memory usage exceeded the container limit. The export implementation buffered the entire result set in memory.",
+    "resolution_summary": "Replaced full-result buffering with bounded streaming batches, reran failed exports, and verified memory stayed within limits.",
+    "tags": [
+      "memory",
+      "export",
+      "oom"
+    ]
+  },
+  {
+    "id": "INC-0011",
+    "created_at": "2026-03-15T19:30:59Z",
+    "environment": "stage",
+    "service": "orders-api",
+    "severity": "SEV2",
+    "title": "orders-api queries fail because a required column is absent",
+    "description": "Requests returned HTTP 500 with column-does-not-exist errors after deployment. The application was deployed before its backward-compatible database migration ran.",
+    "resolution_summary": "Rolled back the application, applied and verified the missing migration, then redeployed and checked affected queries.",
+    "tags": [
+      "database",
+      "migration",
+      "http-500"
+    ]
+  },
+  {
+    "id": "INC-0012",
+    "created_at": "2026-03-10T23:40:53Z",
+    "environment": "qa",
+    "service": "catalog-api",
+    "severity": "SEV4",
+    "title": "Full table scans increase catalog-api request latency",
+    "description": "Filtered lookup requests became slow as the table grew. A frequently used filter column had no supporting index, causing full table scans.",
+    "resolution_summary": "Added an index matching the lookup filter, verified the query plan used it, and confirmed latency and database CPU recovered.",
+    "tags": [
+      "database",
+      "index",
+      "latency"
+    ]
+  },
+  {
+    "id": "INC-0013",
+    "created_at": "2026-05-04T07:12:47Z",
+    "environment": "qa",
+    "service": "inventory-api",
+    "severity": "SEV3",
+    "title": "inventory-api returns 503 when database connections run out",
+    "description": "Requests failed with connection acquisition timeouts during a traffic spike. Connections were not released after exceptions in request handlers.",
+    "resolution_summary": "Fixed connection cleanup in the exception handler, restarted affected instances, and verified pool usage recovered.",
+    "tags": [
+      "database",
+      "connection-pool",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0014",
+    "created_at": "2026-03-15T16:23:25Z",
+    "environment": "stage",
+    "service": "billing-api",
+    "severity": "SEV4",
+    "title": "billing-api returns 503 after configuration deployment",
+    "description": "The rollout stalled with HTTP 503 responses and database host lookup failures. The database hostname in the new configuration was incorrect.",
+    "resolution_summary": "Restored the correct database hostname and redeployed. Readiness checks and database connectivity passed.",
+    "tags": [
+      "configuration",
+      "deployment",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0015",
+    "created_at": "2026-02-14T11:26:28Z",
+    "environment": "dev",
+    "service": "auth-service",
+    "severity": "SEV2",
+    "title": "Expired client certificate blocks auth-service requests",
+    "description": "Mutual TLS handshakes failed and downstream authentication was rejected. The client certificate had not been renewed before expiry.",
+    "resolution_summary": "Renewed the client certificate, reloaded the service, and verified successful TLS authentication.",
+    "tags": [
+      "authentication",
+      "certificate",
+      "tls"
+    ]
+  },
+  {
+    "id": "INC-0016",
+    "created_at": "2026-02-10T23:15:04Z",
+    "environment": "stage",
+    "service": "notifications-worker",
+    "severity": "SEV2",
+    "title": "Insufficient notifications-worker consumers delay queued jobs",
+    "description": "Queued jobs were delayed while worker CPU usage stayed near capacity. The consumer replica count was too low for the incoming message rate.",
+    "resolution_summary": "Increased consumer replicas within downstream capacity, drained the queue, and configured scaling on queue age.",
+    "tags": [
+      "queue",
+      "backlog",
+      "worker-capacity"
+    ]
+  },
+  {
+    "id": "INC-0017",
+    "created_at": "2026-03-31T02:24:16Z",
+    "environment": "qa",
+    "service": "notifications-worker",
+    "severity": "SEV3",
+    "title": "DNS lookup timeouts interrupt notifications-worker outbound requests",
+    "description": "Outbound calls failed intermittently with temporary name resolution errors. The resolver configuration still referenced a DNS server removed during maintenance.",
+    "resolution_summary": "Removed the retired DNS server from resolver configuration, reloaded affected instances, and verified repeated name lookups.",
+    "tags": [
+      "dns",
+      "network",
+      "timeout"
+    ]
+  },
+  {
+    "id": "INC-0018",
+    "created_at": "2026-04-20T00:09:54Z",
+    "environment": "stage",
+    "service": "billing-api",
+    "severity": "SEV3",
+    "title": "Egress firewall blocks billing-api payment requests",
+    "description": "Payment requests failed with TCP connect timeouts after a network policy change. An egress firewall rule blocked the payment provider's documented address range.",
+    "resolution_summary": "Restored the payment provider egress allowlist and verified connectivity. Reconciled payment statuses before retrying unresolved authorizations.",
+    "tags": [
+      "payment",
+      "timeout",
+      "firewall"
+    ]
+  },
+  {
+    "id": "INC-0019",
+    "created_at": "2026-02-12T14:06:31Z",
+    "environment": "qa",
+    "service": "billing-worker",
+    "severity": "SEV3",
+    "title": "Unrotated logs fill the billing-worker data volume",
+    "description": "Jobs failed with no-space-left-on-device errors. Log rotation was disabled, allowing local application logs to fill the volume.",
+    "resolution_summary": "Archived and removed expired application logs, restored log rotation, and verified free space and successful writes.",
+    "tags": [
+      "storage",
+      "disk-full",
+      "log-rotation"
+    ]
+  },
+  {
+    "id": "INC-0020",
+    "created_at": "2026-06-17T05:01:49Z",
+    "environment": "dev",
+    "service": "catalog-api",
+    "severity": "SEV2",
+    "title": "Synchronized cache expiry increases catalog-api latency",
+    "description": "A sudden drop in cache hit rate coincided with slow responses and database load. Popular cache entries used identical expiration times, triggering concurrent refreshes.",
+    "resolution_summary": "Added expiration jitter and single-flight cache refresh, warmed popular entries, and verified database load stabilized.",
+    "tags": [
+      "cache",
+      "latency",
+      "database"
+    ]
+  },
+  {
+    "id": "INC-0021",
+    "created_at": "2026-01-13T08:03:38Z",
+    "environment": "prod",
+    "service": "sync-worker",
+    "severity": "SEV3",
+    "title": "sync-worker retry storm triggers repeated HTTP 429 responses",
+    "description": "Delivery delays increased as rejected requests were immediately resubmitted. The retry loop ignored Retry-After and had no backoff or concurrency cap.",
+    "resolution_summary": "Honored Retry-After, added exponential backoff with jitter, capped concurrency, and verified delivery recovered within provider limits.",
+    "tags": [
+      "rate-limit",
+      "retry",
+      "http-429"
+    ]
+  },
+  {
+    "id": "INC-0022",
+    "created_at": "2026-06-17T03:31:26Z",
+    "environment": "dev",
+    "service": "analytics-worker",
+    "severity": "SEV4",
+    "title": "Large export exhausts memory in analytics-worker",
+    "description": "Worker restarts interrupted exports while smaller jobs continued to succeed. The export implementation buffered the entire result set in memory.",
+    "resolution_summary": "Replaced full-result buffering with bounded streaming batches, reran failed exports, and verified memory stayed within limits.",
+    "tags": [
+      "memory",
+      "export",
+      "oom"
+    ]
+  },
+  {
+    "id": "INC-0023",
+    "created_at": "2026-03-08T01:19:57Z",
+    "environment": "dev",
+    "service": "catalog-api",
+    "severity": "SEV2",
+    "title": "catalog-api queries fail because a required column is absent",
+    "description": "Requests returned HTTP 500 with column-does-not-exist errors after deployment. The application was deployed before its backward-compatible database migration ran.",
+    "resolution_summary": "Rolled back the application, applied and verified the missing migration, then redeployed and checked affected queries.",
+    "tags": [
+      "database",
+      "migration",
+      "http-500"
+    ]
+  },
+  {
+    "id": "INC-0024",
+    "created_at": "2026-01-01T15:07:27Z",
+    "environment": "stage",
+    "service": "catalog-api",
+    "severity": "SEV4",
+    "title": "Missing database index slows catalog-api lookups",
+    "description": "Filtered lookup requests became slow as the table grew. A frequently used filter column had no supporting index, causing full table scans.",
+    "resolution_summary": "Added an index matching the lookup filter, verified the query plan used it, and confirmed latency and database CPU recovered.",
+    "tags": [
+      "database",
+      "index",
+      "latency"
+    ]
+  },
+  {
+    "id": "INC-0025",
+    "created_at": "2026-02-27T22:51:12Z",
+    "environment": "qa",
+    "service": "inventory-api",
+    "severity": "SEV1",
+    "title": "Database connection exhaustion causes inventory-api failures",
+    "description": "Requests failed with connection acquisition timeouts during a traffic spike. Connections were not released after exceptions in request handlers.",
+    "resolution_summary": "Fixed connection cleanup in the exception handler, restarted affected instances, and verified pool usage recovered.",
+    "tags": [
+      "database",
+      "connection-pool",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0026",
+    "created_at": "2026-06-01T04:39:44Z",
+    "environment": "dev",
+    "service": "inventory-api",
+    "severity": "SEV4",
+    "title": "Incorrect database hostname breaks inventory-api readiness",
+    "description": "The rollout stalled with HTTP 503 responses and database host lookup failures. The database hostname in the new configuration was incorrect.",
+    "resolution_summary": "Restored the correct database hostname and redeployed. Readiness checks and database connectivity passed.",
+    "tags": [
+      "configuration",
+      "deployment",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0027",
+    "created_at": "2026-01-22T17:20:28Z",
+    "environment": "stage",
+    "service": "auth-service",
+    "severity": "SEV2",
+    "title": "Service authentication fails after certificate expiry in auth-service",
+    "description": "Service-to-service requests failed with certificate-expired errors. The client certificate had not been renewed before expiry.",
+    "resolution_summary": "Renewed the client certificate, reloaded the service, and verified successful TLS authentication.",
+    "tags": [
+      "authentication",
+      "certificate",
+      "tls"
+    ]
+  },
+  {
+    "id": "INC-0028",
+    "created_at": "2026-06-20T11:49:16Z",
+    "environment": "dev",
+    "service": "notifications-worker",
+    "severity": "SEV2",
+    "title": "Insufficient notifications-worker consumers delay queued jobs",
+    "description": "Queue depth and oldest message age increased under sustained load. The consumer replica count was too low for the incoming message rate.",
+    "resolution_summary": "Increased consumer replicas within downstream capacity, drained the queue, and configured scaling on queue age.",
+    "tags": [
+      "queue",
+      "backlog",
+      "worker-capacity"
+    ]
+  },
+  {
+    "id": "INC-0029",
+    "created_at": "2026-05-29T17:02:49Z",
+    "environment": "qa",
+    "service": "notifications-worker",
+    "severity": "SEV2",
+    "title": "Stale resolver configuration causes DNS errors in notifications-worker",
+    "description": "Outbound calls failed intermittently with temporary name resolution errors. The resolver configuration still referenced a DNS server removed during maintenance.",
+    "resolution_summary": "Removed the retired DNS server from resolver configuration, reloaded affected instances, and verified repeated name lookups.",
+    "tags": [
+      "dns",
+      "network",
+      "timeout"
+    ]
+  },
+  {
+    "id": "INC-0030",
+    "created_at": "2026-04-13T11:08:17Z",
+    "environment": "prod",
+    "service": "checkout-api",
+    "severity": "SEV1",
+    "title": "Payment provider connections time out in checkout-api",
+    "description": "Payment requests failed with TCP connect timeouts after a network policy change. An egress firewall rule blocked the payment provider's documented address range.",
+    "resolution_summary": "Restored the payment provider egress allowlist and verified connectivity. Reconciled payment statuses before retrying unresolved authorizations.",
+    "tags": [
+      "payment",
+      "timeout",
+      "firewall"
+    ]
+  },
+  {
+    "id": "INC-0031",
+    "created_at": "2026-05-11T10:17:17Z",
+    "environment": "stage",
+    "service": "billing-worker",
+    "severity": "SEV2",
+    "title": "Unrotated logs fill the billing-worker data volume",
+    "description": "Jobs failed with no-space-left-on-device errors. Log rotation was disabled, allowing local application logs to fill the volume.",
+    "resolution_summary": "Archived and removed expired application logs, restored log rotation, and verified free space and successful writes.",
+    "tags": [
+      "storage",
+      "disk-full",
+      "log-rotation"
+    ]
+  },
+  {
+    "id": "INC-0032",
+    "created_at": "2026-02-13T15:09:55Z",
+    "environment": "dev",
+    "service": "catalog-api",
+    "severity": "SEV3",
+    "title": "Synchronized cache expiry increases catalog-api latency",
+    "description": "Latency and database reads spiked when popular cache entries expired together. Popular cache entries used identical expiration times, triggering concurrent refreshes.",
+    "resolution_summary": "Added expiration jitter and single-flight cache refresh, warmed popular entries, and verified database load stabilized.",
+    "tags": [
+      "cache",
+      "latency",
+      "database"
+    ]
+  },
+  {
+    "id": "INC-0033",
+    "created_at": "2026-02-12T18:17:14Z",
+    "environment": "dev",
+    "service": "sync-worker",
+    "severity": "SEV2",
+    "title": "Immediate retries amplify provider rate limits in sync-worker",
+    "description": "The external provider returned HTTP 429 while retry volume continued rising. The retry loop ignored Retry-After and had no backoff or concurrency cap.",
+    "resolution_summary": "Honored Retry-After, added exponential backoff with jitter, capped concurrency, and verified delivery recovered within provider limits.",
+    "tags": [
+      "rate-limit",
+      "retry",
+      "http-429"
+    ]
+  },
+  {
+    "id": "INC-0034",
+    "created_at": "2026-06-25T19:33:47Z",
+    "environment": "dev",
+    "service": "reports-worker",
+    "severity": "SEV3",
+    "title": "Large export exhausts memory in reports-worker",
+    "description": "Large export jobs were killed when memory usage exceeded the container limit. The export implementation buffered the entire result set in memory.",
+    "resolution_summary": "Replaced full-result buffering with bounded streaming batches, reran failed exports, and verified memory stayed within limits.",
+    "tags": [
+      "memory",
+      "export",
+      "oom"
+    ]
+  },
+  {
+    "id": "INC-0035",
+    "created_at": "2026-05-10T21:39:44Z",
+    "environment": "prod",
+    "service": "billing-api",
+    "severity": "SEV1",
+    "title": "Missing schema migration causes billing-api errors after release",
+    "description": "The new application release failed queries referencing a newly introduced column. The application was deployed before its backward-compatible database migration ran.",
+    "resolution_summary": "Rolled back the application, applied and verified the missing migration, then redeployed and checked affected queries.",
+    "tags": [
+      "database",
+      "migration",
+      "http-500"
+    ]
+  },
+  {
+    "id": "INC-0036",
+    "created_at": "2026-06-02T08:35:29Z",
+    "environment": "prod",
+    "service": "inventory-api",
+    "severity": "SEV3",
+    "title": "Missing database index slows inventory-api lookups",
+    "description": "Filtered lookup requests became slow as the table grew. A frequently used filter column had no supporting index, causing full table scans.",
+    "resolution_summary": "Added an index matching the lookup filter, verified the query plan used it, and confirmed latency and database CPU recovered.",
+    "tags": [
+      "database",
+      "index",
+      "latency"
+    ]
+  },
+  {
+    "id": "INC-0037",
+    "created_at": "2026-05-08T23:04:55Z",
+    "environment": "prod",
+    "service": "orders-api",
+    "severity": "SEV2",
+    "title": "Database connection exhaustion causes orders-api failures",
+    "description": "HTTP 503 responses increased as the database connection pool reached its limit. Connections were not released after exceptions in request handlers.",
+    "resolution_summary": "Fixed connection cleanup in the exception handler, restarted affected instances, and verified pool usage recovered.",
+    "tags": [
+      "database",
+      "connection-pool",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0038",
+    "created_at": "2026-06-17T17:46:15Z",
+    "environment": "dev",
+    "service": "billing-api",
+    "severity": "SEV4",
+    "title": "billing-api returns 503 after configuration deployment",
+    "description": "All newly deployed instances failed readiness checks. The database hostname in the new configuration was incorrect.",
+    "resolution_summary": "Restored the correct database hostname and redeployed. Readiness checks and database connectivity passed.",
+    "tags": [
+      "configuration",
+      "deployment",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0039",
+    "created_at": "2026-05-22T09:43:16Z",
+    "environment": "stage",
+    "service": "payments-api",
+    "severity": "SEV1",
+    "title": "Service authentication fails after certificate expiry in payments-api",
+    "description": "Service-to-service requests failed with certificate-expired errors. The client certificate had not been renewed before expiry.",
+    "resolution_summary": "Renewed the client certificate, reloaded the service, and verified successful TLS authentication.",
+    "tags": [
+      "authentication",
+      "certificate",
+      "tls"
+    ]
+  },
+  {
+    "id": "INC-0040",
+    "created_at": "2026-04-15T03:16:21Z",
+    "environment": "prod",
+    "service": "notifications-worker",
+    "severity": "SEV2",
+    "title": "Insufficient notifications-worker consumers delay queued jobs",
+    "description": "Queue depth and oldest message age increased under sustained load. The consumer replica count was too low for the incoming message rate.",
+    "resolution_summary": "Increased consumer replicas within downstream capacity, drained the queue, and configured scaling on queue age.",
+    "tags": [
+      "queue",
+      "backlog",
+      "worker-capacity"
+    ]
+  },
+  {
+    "id": "INC-0041",
+    "created_at": "2026-03-31T20:00:11Z",
+    "environment": "qa",
+    "service": "payments-api",
+    "severity": "SEV2",
+    "title": "Stale resolver configuration causes DNS errors in payments-api",
+    "description": "Outbound calls failed intermittently with temporary name resolution errors. The resolver configuration still referenced a DNS server removed during maintenance.",
+    "resolution_summary": "Removed the retired DNS server from resolver configuration, reloaded affected instances, and verified repeated name lookups.",
+    "tags": [
+      "dns",
+      "network",
+      "timeout"
+    ]
+  },
+  {
+    "id": "INC-0042",
+    "created_at": "2026-05-07T15:12:55Z",
+    "environment": "dev",
+    "service": "payments-api",
+    "severity": "SEV1",
+    "title": "Payment provider connections time out in payments-api",
+    "description": "Payment authorization attempts timed out before a connection was established. An egress firewall rule blocked the payment provider's documented address range.",
+    "resolution_summary": "Restored the payment provider egress allowlist and verified connectivity. Reconciled payment statuses before retrying unresolved authorizations.",
+    "tags": [
+      "payment",
+      "timeout",
+      "firewall"
+    ]
+  },
+  {
+    "id": "INC-0043",
+    "created_at": "2026-04-05T07:15:06Z",
+    "environment": "prod",
+    "service": "billing-worker",
+    "severity": "SEV1",
+    "title": "Unrotated logs fill the billing-worker data volume",
+    "description": "Jobs failed with no-space-left-on-device errors. Log rotation was disabled, allowing local application logs to fill the volume.",
+    "resolution_summary": "Archived and removed expired application logs, restored log rotation, and verified free space and successful writes.",
+    "tags": [
+      "storage",
+      "disk-full",
+      "log-rotation"
+    ]
+  },
+  {
+    "id": "INC-0044",
+    "created_at": "2026-03-15T14:08:33Z",
+    "environment": "dev",
+    "service": "catalog-api",
+    "severity": "SEV3",
+    "title": "Cache stampede overloads catalog-api database reads",
+    "description": "A sudden drop in cache hit rate coincided with slow responses and database load. Popular cache entries used identical expiration times, triggering concurrent refreshes.",
+    "resolution_summary": "Added expiration jitter and single-flight cache refresh, warmed popular entries, and verified database load stabilized.",
+    "tags": [
+      "cache",
+      "latency",
+      "database"
+    ]
+  },
+  {
+    "id": "INC-0045",
+    "created_at": "2026-03-24T03:21:27Z",
+    "environment": "prod",
+    "service": "webhooks-worker",
+    "severity": "SEV2",
+    "title": "Immediate retries amplify provider rate limits in webhooks-worker",
+    "description": "Delivery delays increased as rejected requests were immediately resubmitted. The retry loop ignored Retry-After and had no backoff or concurrency cap.",
+    "resolution_summary": "Honored Retry-After, added exponential backoff with jitter, capped concurrency, and verified delivery recovered within provider limits.",
+    "tags": [
+      "rate-limit",
+      "retry",
+      "http-429"
+    ]
+  },
+  {
+    "id": "INC-0046",
+    "created_at": "2026-01-12T08:33:06Z",
+    "environment": "dev",
+    "service": "reports-worker",
+    "severity": "SEV4",
+    "title": "Unbounded export buffering causes reports-worker restarts",
+    "description": "Large export jobs were killed when memory usage exceeded the container limit. The export implementation buffered the entire result set in memory.",
+    "resolution_summary": "Replaced full-result buffering with bounded streaming batches, reran failed exports, and verified memory stayed within limits.",
+    "tags": [
+      "memory",
+      "export",
+      "oom"
+    ]
+  },
+  {
+    "id": "INC-0047",
+    "created_at": "2026-04-24T10:27:53Z",
+    "environment": "prod",
+    "service": "orders-api",
+    "severity": "SEV3",
+    "title": "Missing schema migration causes orders-api errors after release",
+    "description": "Requests returned HTTP 500 with column-does-not-exist errors after deployment. The application was deployed before its backward-compatible database migration ran.",
+    "resolution_summary": "Rolled back the application, applied and verified the missing migration, then redeployed and checked affected queries.",
+    "tags": [
+      "database",
+      "migration",
+      "http-500"
+    ]
+  },
+  {
+    "id": "INC-0048",
+    "created_at": "2026-01-16T13:20:47Z",
+    "environment": "qa",
+    "service": "orders-api",
+    "severity": "SEV2",
+    "title": "Missing database index slows orders-api lookups",
+    "description": "Filtered lookup requests became slow as the table grew. A frequently used filter column had no supporting index, causing full table scans.",
+    "resolution_summary": "Added an index matching the lookup filter, verified the query plan used it, and confirmed latency and database CPU recovered.",
+    "tags": [
+      "database",
+      "index",
+      "latency"
+    ]
+  },
+  {
+    "id": "INC-0049",
+    "created_at": "2026-01-24T06:42:43Z",
+    "environment": "qa",
+    "service": "catalog-api",
+    "severity": "SEV3",
+    "title": "catalog-api returns 503 when database connections run out",
+    "description": "Requests failed with connection acquisition timeouts during a traffic spike. Connections were not released after exceptions in request handlers.",
+    "resolution_summary": "Fixed connection cleanup in the exception handler, restarted affected instances, and verified pool usage recovered.",
+    "tags": [
+      "database",
+      "connection-pool",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0050",
+    "created_at": "2026-05-08T15:34:51Z",
+    "environment": "stage",
+    "service": "billing-api",
+    "severity": "SEV3",
+    "title": "billing-api returns 503 after configuration deployment",
+    "description": "The rollout stalled with HTTP 503 responses and database host lookup failures. The database hostname in the new configuration was incorrect.",
+    "resolution_summary": "Restored the correct database hostname and redeployed. Readiness checks and database connectivity passed.",
+    "tags": [
+      "configuration",
+      "deployment",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0051",
+    "created_at": "2026-02-21T13:51:12Z",
+    "environment": "prod",
+    "service": "auth-service",
+    "severity": "SEV1",
+    "title": "Expired client certificate blocks auth-service requests",
+    "description": "Mutual TLS handshakes failed and downstream authentication was rejected. The client certificate had not been renewed before expiry.",
+    "resolution_summary": "Renewed the client certificate, reloaded the service, and verified successful TLS authentication.",
+    "tags": [
+      "authentication",
+      "certificate",
+      "tls"
+    ]
+  },
+  {
+    "id": "INC-0052",
+    "created_at": "2026-06-30T09:32:21Z",
+    "environment": "dev",
+    "service": "orders-worker",
+    "severity": "SEV2",
+    "title": "Insufficient orders-worker consumers delay queued jobs",
+    "description": "Queue depth and oldest message age increased under sustained load. The consumer replica count was too low for the incoming message rate.",
+    "resolution_summary": "Increased consumer replicas within downstream capacity, drained the queue, and configured scaling on queue age.",
+    "tags": [
+      "queue",
+      "backlog",
+      "worker-capacity"
+    ]
+  },
+  {
+    "id": "INC-0053",
+    "created_at": "2026-04-15T09:33:28Z",
+    "environment": "qa",
+    "service": "orders-api",
+    "severity": "SEV4",
+    "title": "Stale resolver configuration causes DNS errors in orders-api",
+    "description": "Outbound calls failed intermittently with temporary name resolution errors. The resolver configuration still referenced a DNS server removed during maintenance.",
+    "resolution_summary": "Removed the retired DNS server from resolver configuration, reloaded affected instances, and verified repeated name lookups.",
+    "tags": [
+      "dns",
+      "network",
+      "timeout"
+    ]
+  },
+  {
+    "id": "INC-0054",
+    "created_at": "2026-06-21T01:07:28Z",
+    "environment": "dev",
+    "service": "checkout-api",
+    "severity": "SEV1",
+    "title": "Egress firewall blocks checkout-api payment requests",
+    "description": "Payment requests failed with TCP connect timeouts after a network policy change. An egress firewall rule blocked the payment provider's documented address range.",
+    "resolution_summary": "Restored the payment provider egress allowlist and verified connectivity. Reconciled payment statuses before retrying unresolved authorizations.",
+    "tags": [
+      "payment",
+      "timeout",
+      "firewall"
+    ]
+  },
+  {
+    "id": "INC-0055",
+    "created_at": "2026-03-27T02:05:17Z",
+    "environment": "stage",
+    "service": "reports-worker",
+    "severity": "SEV3",
+    "title": "reports-worker stops writing when storage capacity is exhausted",
+    "description": "Disk utilization reached capacity and writes to the local volume failed. Log rotation was disabled, allowing local application logs to fill the volume.",
+    "resolution_summary": "Archived and removed expired application logs, restored log rotation, and verified free space and successful writes.",
+    "tags": [
+      "storage",
+      "disk-full",
+      "log-rotation"
+    ]
+  },
+  {
+    "id": "INC-0056",
+    "created_at": "2026-01-21T02:44:53Z",
+    "environment": "qa",
+    "service": "pricing-api",
+    "severity": "SEV3",
+    "title": "Synchronized cache expiry increases pricing-api latency",
+    "description": "Latency and database reads spiked when popular cache entries expired together. Popular cache entries used identical expiration times, triggering concurrent refreshes.",
+    "resolution_summary": "Added expiration jitter and single-flight cache refresh, warmed popular entries, and verified database load stabilized.",
+    "tags": [
+      "cache",
+      "latency",
+      "database"
+    ]
+  },
+  {
+    "id": "INC-0057",
+    "created_at": "2026-04-18T10:12:32Z",
+    "environment": "qa",
+    "service": "sync-worker",
+    "severity": "SEV3",
+    "title": "sync-worker retry storm triggers repeated HTTP 429 responses",
+    "description": "The external provider returned HTTP 429 while retry volume continued rising. The retry loop ignored Retry-After and had no backoff or concurrency cap.",
+    "resolution_summary": "Honored Retry-After, added exponential backoff with jitter, capped concurrency, and verified delivery recovered within provider limits.",
+    "tags": [
+      "rate-limit",
+      "retry",
+      "http-429"
+    ]
+  },
+  {
+    "id": "INC-0058",
+    "created_at": "2026-03-08T13:56:16Z",
+    "environment": "qa",
+    "service": "analytics-worker",
+    "severity": "SEV4",
+    "title": "Unbounded export buffering causes analytics-worker restarts",
+    "description": "Worker restarts interrupted exports while smaller jobs continued to succeed. The export implementation buffered the entire result set in memory.",
+    "resolution_summary": "Replaced full-result buffering with bounded streaming batches, reran failed exports, and verified memory stayed within limits.",
+    "tags": [
+      "memory",
+      "export",
+      "oom"
+    ]
+  },
+  {
+    "id": "INC-0059",
+    "created_at": "2026-06-25T19:10:25Z",
+    "environment": "dev",
+    "service": "billing-api",
+    "severity": "SEV1",
+    "title": "billing-api queries fail because a required column is absent",
+    "description": "The new application release failed queries referencing a newly introduced column. The application was deployed before its backward-compatible database migration ran.",
+    "resolution_summary": "Rolled back the application, applied and verified the missing migration, then redeployed and checked affected queries.",
+    "tags": [
+      "database",
+      "migration",
+      "http-500"
+    ]
+  },
+  {
+    "id": "INC-0060",
+    "created_at": "2026-01-01T16:31:26Z",
+    "environment": "stage",
+    "service": "inventory-api",
+    "severity": "SEV2",
+    "title": "Full table scans increase inventory-api request latency",
+    "description": "Filtered lookup requests became slow as the table grew. A frequently used filter column had no supporting index, causing full table scans.",
+    "resolution_summary": "Added an index matching the lookup filter, verified the query plan used it, and confirmed latency and database CPU recovered.",
+    "tags": [
+      "database",
+      "index",
+      "latency"
+    ]
+  },
+  {
+    "id": "INC-0061",
+    "created_at": "2026-03-27T19:06:09Z",
+    "environment": "prod",
+    "service": "inventory-api",
+    "severity": "SEV3",
+    "title": "inventory-api returns 503 when database connections run out",
+    "description": "Requests failed with connection acquisition timeouts during a traffic spike. Connections were not released after exceptions in request handlers.",
+    "resolution_summary": "Fixed connection cleanup in the exception handler, restarted affected instances, and verified pool usage recovered.",
+    "tags": [
+      "database",
+      "connection-pool",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0062",
+    "created_at": "2026-06-21T11:34:26Z",
+    "environment": "qa",
+    "service": "orders-api",
+    "severity": "SEV4",
+    "title": "orders-api returns 503 after configuration deployment",
+    "description": "The rollout stalled with HTTP 503 responses and database host lookup failures. The database hostname in the new configuration was incorrect.",
+    "resolution_summary": "Restored the correct database hostname and redeployed. Readiness checks and database connectivity passed.",
+    "tags": [
+      "configuration",
+      "deployment",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0063",
+    "created_at": "2026-04-18T06:57:12Z",
+    "environment": "qa",
+    "service": "orders-api",
+    "severity": "SEV2",
+    "title": "Service authentication fails after certificate expiry in orders-api",
+    "description": "Service-to-service requests failed with certificate-expired errors. The client certificate had not been renewed before expiry.",
+    "resolution_summary": "Renewed the client certificate, reloaded the service, and verified successful TLS authentication.",
+    "tags": [
+      "authentication",
+      "certificate",
+      "tls"
+    ]
+  },
+  {
+    "id": "INC-0064",
+    "created_at": "2026-03-12T19:23:57Z",
+    "environment": "dev",
+    "service": "orders-worker",
+    "severity": "SEV3",
+    "title": "Queue backlog grows while orders-worker workers are saturated",
+    "description": "Queue depth and oldest message age increased under sustained load. The consumer replica count was too low for the incoming message rate.",
+    "resolution_summary": "Increased consumer replicas within downstream capacity, drained the queue, and configured scaling on queue age.",
+    "tags": [
+      "queue",
+      "backlog",
+      "worker-capacity"
+    ]
+  },
+  {
+    "id": "INC-0065",
+    "created_at": "2026-01-20T23:03:10Z",
+    "environment": "stage",
+    "service": "notifications-worker",
+    "severity": "SEV4",
+    "title": "Stale resolver configuration causes DNS errors in notifications-worker",
+    "description": "Outbound calls failed intermittently with temporary name resolution errors. The resolver configuration still referenced a DNS server removed during maintenance.",
+    "resolution_summary": "Removed the retired DNS server from resolver configuration, reloaded affected instances, and verified repeated name lookups.",
+    "tags": [
+      "dns",
+      "network",
+      "timeout"
+    ]
+  },
+  {
+    "id": "INC-0066",
+    "created_at": "2026-06-17T21:21:16Z",
+    "environment": "qa",
+    "service": "payments-api",
+    "severity": "SEV1",
+    "title": "Egress firewall blocks payments-api payment requests",
+    "description": "Payment authorization attempts timed out before a connection was established. An egress firewall rule blocked the payment provider's documented address range.",
+    "resolution_summary": "Restored the payment provider egress allowlist and verified connectivity. Reconciled payment statuses before retrying unresolved authorizations.",
+    "tags": [
+      "payment",
+      "timeout",
+      "firewall"
+    ]
+  },
+  {
+    "id": "INC-0067",
+    "created_at": "2026-05-24T00:38:21Z",
+    "environment": "stage",
+    "service": "reports-worker",
+    "severity": "SEV2",
+    "title": "reports-worker stops writing when storage capacity is exhausted",
+    "description": "Disk utilization reached capacity and writes to the local volume failed. Log rotation was disabled, allowing local application logs to fill the volume.",
+    "resolution_summary": "Archived and removed expired application logs, restored log rotation, and verified free space and successful writes.",
+    "tags": [
+      "storage",
+      "disk-full",
+      "log-rotation"
+    ]
+  },
+  {
+    "id": "INC-0068",
+    "created_at": "2026-06-02T21:25:52Z",
+    "environment": "dev",
+    "service": "catalog-api",
+    "severity": "SEV3",
+    "title": "Synchronized cache expiry increases catalog-api latency",
+    "description": "A sudden drop in cache hit rate coincided with slow responses and database load. Popular cache entries used identical expiration times, triggering concurrent refreshes.",
+    "resolution_summary": "Added expiration jitter and single-flight cache refresh, warmed popular entries, and verified database load stabilized.",
+    "tags": [
+      "cache",
+      "latency",
+      "database"
+    ]
+  },
+  {
+    "id": "INC-0069",
+    "created_at": "2026-02-08T18:04:36Z",
+    "environment": "prod",
+    "service": "notifications-worker",
+    "severity": "SEV3",
+    "title": "notifications-worker retry storm triggers repeated HTTP 429 responses",
+    "description": "The external provider returned HTTP 429 while retry volume continued rising. The retry loop ignored Retry-After and had no backoff or concurrency cap.",
+    "resolution_summary": "Honored Retry-After, added exponential backoff with jitter, capped concurrency, and verified delivery recovered within provider limits.",
+    "tags": [
+      "rate-limit",
+      "retry",
+      "http-429"
+    ]
+  },
+  {
+    "id": "INC-0070",
+    "created_at": "2026-01-05T14:17:03Z",
+    "environment": "qa",
+    "service": "reports-worker",
+    "severity": "SEV3",
+    "title": "Unbounded export buffering causes reports-worker restarts",
+    "description": "Worker restarts interrupted exports while smaller jobs continued to succeed. The export implementation buffered the entire result set in memory.",
+    "resolution_summary": "Replaced full-result buffering with bounded streaming batches, reran failed exports, and verified memory stayed within limits.",
+    "tags": [
+      "memory",
+      "export",
+      "oom"
+    ]
+  },
+  {
+    "id": "INC-0071",
+    "created_at": "2026-05-31T03:57:48Z",
+    "environment": "stage",
+    "service": "orders-api",
+    "severity": "SEV2",
+    "title": "orders-api queries fail because a required column is absent",
+    "description": "The new application release failed queries referencing a newly introduced column. The application was deployed before its backward-compatible database migration ran.",
+    "resolution_summary": "Rolled back the application, applied and verified the missing migration, then redeployed and checked affected queries.",
+    "tags": [
+      "database",
+      "migration",
+      "http-500"
+    ]
+  },
+  {
+    "id": "INC-0072",
+    "created_at": "2026-01-23T09:31:53Z",
+    "environment": "stage",
+    "service": "inventory-api",
+    "severity": "SEV2",
+    "title": "Full table scans increase inventory-api request latency",
+    "description": "Filtered lookup requests became slow as the table grew. A frequently used filter column had no supporting index, causing full table scans.",
+    "resolution_summary": "Added an index matching the lookup filter, verified the query plan used it, and confirmed latency and database CPU recovered.",
+    "tags": [
+      "database",
+      "index",
+      "latency"
+    ]
+  },
+  {
+    "id": "INC-0073",
+    "created_at": "2026-04-26T20:13:24Z",
+    "environment": "prod",
+    "service": "orders-api",
+    "severity": "SEV2",
+    "title": "Database connection exhaustion causes orders-api failures",
+    "description": "HTTP 503 responses increased as the database connection pool reached its limit. Connections were not released after exceptions in request handlers.",
+    "resolution_summary": "Fixed connection cleanup in the exception handler, restarted affected instances, and verified pool usage recovered.",
+    "tags": [
+      "database",
+      "connection-pool",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0074",
+    "created_at": "2026-04-10T07:24:15Z",
+    "environment": "dev",
+    "service": "inventory-api",
+    "severity": "SEV3",
+    "title": "inventory-api returns 503 after configuration deployment",
+    "description": "The rollout stalled with HTTP 503 responses and database host lookup failures. The database hostname in the new configuration was incorrect.",
+    "resolution_summary": "Restored the correct database hostname and redeployed. Readiness checks and database connectivity passed.",
+    "tags": [
+      "configuration",
+      "deployment",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0075",
+    "created_at": "2026-05-18T15:10:43Z",
+    "environment": "prod",
+    "service": "auth-service",
+    "severity": "SEV1",
+    "title": "Service authentication fails after certificate expiry in auth-service",
+    "description": "Mutual TLS handshakes failed and downstream authentication was rejected. The client certificate had not been renewed before expiry.",
+    "resolution_summary": "Renewed the client certificate, reloaded the service, and verified successful TLS authentication.",
+    "tags": [
+      "authentication",
+      "certificate",
+      "tls"
+    ]
+  },
+  {
+    "id": "INC-0076",
+    "created_at": "2026-01-14T14:06:05Z",
+    "environment": "stage",
+    "service": "orders-worker",
+    "severity": "SEV4",
+    "title": "Insufficient orders-worker consumers delay queued jobs",
+    "description": "Queue depth and oldest message age increased under sustained load. The consumer replica count was too low for the incoming message rate.",
+    "resolution_summary": "Increased consumer replicas within downstream capacity, drained the queue, and configured scaling on queue age.",
+    "tags": [
+      "queue",
+      "backlog",
+      "worker-capacity"
+    ]
+  },
+  {
+    "id": "INC-0077",
+    "created_at": "2026-06-24T18:31:20Z",
+    "environment": "stage",
+    "service": "notifications-worker",
+    "severity": "SEV4",
+    "title": "Stale resolver configuration causes DNS errors in notifications-worker",
+    "description": "DNS queries timed out even though target services were healthy. The resolver configuration still referenced a DNS server removed during maintenance.",
+    "resolution_summary": "Removed the retired DNS server from resolver configuration, reloaded affected instances, and verified repeated name lookups.",
+    "tags": [
+      "dns",
+      "network",
+      "timeout"
+    ]
+  },
+  {
+    "id": "INC-0078",
+    "created_at": "2026-03-20T03:19:18Z",
+    "environment": "stage",
+    "service": "checkout-api",
+    "severity": "SEV3",
+    "title": "Payment provider connections time out in checkout-api",
+    "description": "Payment authorization attempts timed out before a connection was established. An egress firewall rule blocked the payment provider's documented address range.",
+    "resolution_summary": "Restored the payment provider egress allowlist and verified connectivity. Reconciled payment statuses before retrying unresolved authorizations.",
+    "tags": [
+      "payment",
+      "timeout",
+      "firewall"
+    ]
+  },
+  {
+    "id": "INC-0079",
+    "created_at": "2026-05-10T02:47:44Z",
+    "environment": "prod",
+    "service": "billing-worker",
+    "severity": "SEV3",
+    "title": "billing-worker stops writing when storage capacity is exhausted",
+    "description": "Disk utilization reached capacity and writes to the local volume failed. Log rotation was disabled, allowing local application logs to fill the volume.",
+    "resolution_summary": "Archived and removed expired application logs, restored log rotation, and verified free space and successful writes.",
+    "tags": [
+      "storage",
+      "disk-full",
+      "log-rotation"
+    ]
+  },
+  {
+    "id": "INC-0080",
+    "created_at": "2026-04-17T09:34:20Z",
+    "environment": "dev",
+    "service": "inventory-api",
+    "severity": "SEV3",
+    "title": "Cache stampede overloads inventory-api database reads",
+    "description": "Latency and database reads spiked when popular cache entries expired together. Popular cache entries used identical expiration times, triggering concurrent refreshes.",
+    "resolution_summary": "Added expiration jitter and single-flight cache refresh, warmed popular entries, and verified database load stabilized.",
+    "tags": [
+      "cache",
+      "latency",
+      "database"
+    ]
+  },
+  {
+    "id": "INC-0081",
+    "created_at": "2026-06-02T13:54:05Z",
+    "environment": "stage",
+    "service": "webhooks-worker",
+    "severity": "SEV3",
+    "title": "webhooks-worker retry storm triggers repeated HTTP 429 responses",
+    "description": "Delivery delays increased as rejected requests were immediately resubmitted. The retry loop ignored Retry-After and had no backoff or concurrency cap.",
+    "resolution_summary": "Honored Retry-After, added exponential backoff with jitter, capped concurrency, and verified delivery recovered within provider limits.",
+    "tags": [
+      "rate-limit",
+      "retry",
+      "http-429"
+    ]
+  },
+  {
+    "id": "INC-0082",
+    "created_at": "2026-02-11T11:55:14Z",
+    "environment": "prod",
+    "service": "analytics-worker",
+    "severity": "SEV4",
+    "title": "Large export exhausts memory in analytics-worker",
+    "description": "Large export jobs were killed when memory usage exceeded the container limit. The export implementation buffered the entire result set in memory.",
+    "resolution_summary": "Replaced full-result buffering with bounded streaming batches, reran failed exports, and verified memory stayed within limits.",
+    "tags": [
+      "memory",
+      "export",
+      "oom"
+    ]
+  },
+  {
+    "id": "INC-0083",
+    "created_at": "2026-04-11T02:10:49Z",
+    "environment": "stage",
+    "service": "billing-api",
+    "severity": "SEV1",
+    "title": "Missing schema migration causes billing-api errors after release",
+    "description": "The new application release failed queries referencing a newly introduced column. The application was deployed before its backward-compatible database migration ran.",
+    "resolution_summary": "Rolled back the application, applied and verified the missing migration, then redeployed and checked affected queries.",
+    "tags": [
+      "database",
+      "migration",
+      "http-500"
+    ]
+  },
+  {
+    "id": "INC-0084",
+    "created_at": "2026-06-06T14:51:19Z",
+    "environment": "qa",
+    "service": "inventory-api",
+    "severity": "SEV2",
+    "title": "Missing database index slows inventory-api lookups",
+    "description": "Filtered lookup requests became slow as the table grew. A frequently used filter column had no supporting index, causing full table scans.",
+    "resolution_summary": "Added an index matching the lookup filter, verified the query plan used it, and confirmed latency and database CPU recovered.",
+    "tags": [
+      "database",
+      "index",
+      "latency"
+    ]
+  },
+  {
+    "id": "INC-0085",
+    "created_at": "2026-04-03T06:17:45Z",
+    "environment": "dev",
+    "service": "orders-api",
+    "severity": "SEV2",
+    "title": "Database connection exhaustion causes orders-api failures",
+    "description": "Requests failed with connection acquisition timeouts during a traffic spike. Connections were not released after exceptions in request handlers.",
+    "resolution_summary": "Fixed connection cleanup in the exception handler, restarted affected instances, and verified pool usage recovered.",
+    "tags": [
+      "database",
+      "connection-pool",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0086",
+    "created_at": "2026-05-16T05:14:45Z",
+    "environment": "prod",
+    "service": "inventory-api",
+    "severity": "SEV3",
+    "title": "Incorrect database hostname breaks inventory-api readiness",
+    "description": "All newly deployed instances failed readiness checks. The database hostname in the new configuration was incorrect.",
+    "resolution_summary": "Restored the correct database hostname and redeployed. Readiness checks and database connectivity passed.",
+    "tags": [
+      "configuration",
+      "deployment",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0087",
+    "created_at": "2026-05-08T09:27:06Z",
+    "environment": "dev",
+    "service": "auth-service",
+    "severity": "SEV1",
+    "title": "Expired client certificate blocks auth-service requests",
+    "description": "Service-to-service requests failed with certificate-expired errors. The client certificate had not been renewed before expiry.",
+    "resolution_summary": "Renewed the client certificate, reloaded the service, and verified successful TLS authentication.",
+    "tags": [
+      "authentication",
+      "certificate",
+      "tls"
+    ]
+  },
+  {
+    "id": "INC-0088",
+    "created_at": "2026-06-06T03:25:24Z",
+    "environment": "prod",
+    "service": "notifications-worker",
+    "severity": "SEV2",
+    "title": "Queue backlog grows while notifications-worker workers are saturated",
+    "description": "Queue depth and oldest message age increased under sustained load. The consumer replica count was too low for the incoming message rate.",
+    "resolution_summary": "Increased consumer replicas within downstream capacity, drained the queue, and configured scaling on queue age.",
+    "tags": [
+      "queue",
+      "backlog",
+      "worker-capacity"
+    ]
+  },
+  {
+    "id": "INC-0089",
+    "created_at": "2026-01-26T21:24:18Z",
+    "environment": "prod",
+    "service": "payments-api",
+    "severity": "SEV4",
+    "title": "Stale resolver configuration causes DNS errors in payments-api",
+    "description": "DNS queries timed out even though target services were healthy. The resolver configuration still referenced a DNS server removed during maintenance.",
+    "resolution_summary": "Removed the retired DNS server from resolver configuration, reloaded affected instances, and verified repeated name lookups.",
+    "tags": [
+      "dns",
+      "network",
+      "timeout"
+    ]
+  },
+  {
+    "id": "INC-0090",
+    "created_at": "2026-06-08T06:12:20Z",
+    "environment": "prod",
+    "service": "billing-api",
+    "severity": "SEV3",
+    "title": "Egress firewall blocks billing-api payment requests",
+    "description": "Payment authorization attempts timed out before a connection was established. An egress firewall rule blocked the payment provider's documented address range.",
+    "resolution_summary": "Restored the payment provider egress allowlist and verified connectivity. Reconciled payment statuses before retrying unresolved authorizations.",
+    "tags": [
+      "payment",
+      "timeout",
+      "firewall"
+    ]
+  },
+  {
+    "id": "INC-0091",
+    "created_at": "2026-06-17T06:51:26Z",
+    "environment": "prod",
+    "service": "audit-service",
+    "severity": "SEV2",
+    "title": "Unrotated logs fill the audit-service data volume",
+    "description": "Jobs failed with no-space-left-on-device errors. Log rotation was disabled, allowing local application logs to fill the volume.",
+    "resolution_summary": "Archived and removed expired application logs, restored log rotation, and verified free space and successful writes.",
+    "tags": [
+      "storage",
+      "disk-full",
+      "log-rotation"
+    ]
+  },
+  {
+    "id": "INC-0092",
+    "created_at": "2026-02-23T20:21:52Z",
+    "environment": "prod",
+    "service": "pricing-api",
+    "severity": "SEV4",
+    "title": "Synchronized cache expiry increases pricing-api latency",
+    "description": "A sudden drop in cache hit rate coincided with slow responses and database load. Popular cache entries used identical expiration times, triggering concurrent refreshes.",
+    "resolution_summary": "Added expiration jitter and single-flight cache refresh, warmed popular entries, and verified database load stabilized.",
+    "tags": [
+      "cache",
+      "latency",
+      "database"
+    ]
+  },
+  {
+    "id": "INC-0093",
+    "created_at": "2026-01-16T01:05:54Z",
+    "environment": "stage",
+    "service": "webhooks-worker",
+    "severity": "SEV2",
+    "title": "webhooks-worker retry storm triggers repeated HTTP 429 responses",
+    "description": "Delivery delays increased as rejected requests were immediately resubmitted. The retry loop ignored Retry-After and had no backoff or concurrency cap.",
+    "resolution_summary": "Honored Retry-After, added exponential backoff with jitter, capped concurrency, and verified delivery recovered within provider limits.",
+    "tags": [
+      "rate-limit",
+      "retry",
+      "http-429"
+    ]
+  },
+  {
+    "id": "INC-0094",
+    "created_at": "2026-06-23T09:48:24Z",
+    "environment": "dev",
+    "service": "exports-worker",
+    "severity": "SEV2",
+    "title": "Large export exhausts memory in exports-worker",
+    "description": "Large export jobs were killed when memory usage exceeded the container limit. The export implementation buffered the entire result set in memory.",
+    "resolution_summary": "Replaced full-result buffering with bounded streaming batches, reran failed exports, and verified memory stayed within limits.",
+    "tags": [
+      "memory",
+      "export",
+      "oom"
+    ]
+  },
+  {
+    "id": "INC-0095",
+    "created_at": "2026-05-15T18:02:25Z",
+    "environment": "qa",
+    "service": "billing-api",
+    "severity": "SEV3",
+    "title": "Missing schema migration causes billing-api errors after release",
+    "description": "Requests returned HTTP 500 with column-does-not-exist errors after deployment. The application was deployed before its backward-compatible database migration ran.",
+    "resolution_summary": "Rolled back the application, applied and verified the missing migration, then redeployed and checked affected queries.",
+    "tags": [
+      "database",
+      "migration",
+      "http-500"
+    ]
+  },
+  {
+    "id": "INC-0096",
+    "created_at": "2026-03-21T03:33:02Z",
+    "environment": "stage",
+    "service": "catalog-api",
+    "severity": "SEV4",
+    "title": "Full table scans increase catalog-api request latency",
+    "description": "Request latency rose alongside database CPU and rows scanned per query. A frequently used filter column had no supporting index, causing full table scans.",
+    "resolution_summary": "Added an index matching the lookup filter, verified the query plan used it, and confirmed latency and database CPU recovered.",
+    "tags": [
+      "database",
+      "index",
+      "latency"
+    ]
+  },
+  {
+    "id": "INC-0097",
+    "created_at": "2026-02-10T03:55:05Z",
+    "environment": "prod",
+    "service": "orders-api",
+    "severity": "SEV2",
+    "title": "orders-api returns 503 when database connections run out",
+    "description": "HTTP 503 responses increased as the database connection pool reached its limit. Connections were not released after exceptions in request handlers.",
+    "resolution_summary": "Fixed connection cleanup in the exception handler, restarted affected instances, and verified pool usage recovered.",
+    "tags": [
+      "database",
+      "connection-pool",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0098",
+    "created_at": "2026-01-02T03:28:39Z",
+    "environment": "stage",
+    "service": "billing-api",
+    "severity": "SEV3",
+    "title": "Incorrect database hostname breaks billing-api readiness",
+    "description": "The rollout stalled with HTTP 503 responses and database host lookup failures. The database hostname in the new configuration was incorrect.",
+    "resolution_summary": "Restored the correct database hostname and redeployed. Readiness checks and database connectivity passed.",
+    "tags": [
+      "configuration",
+      "deployment",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0099",
+    "created_at": "2026-05-26T03:40:31Z",
+    "environment": "qa",
+    "service": "orders-api",
+    "severity": "SEV2",
+    "title": "Service authentication fails after certificate expiry in orders-api",
+    "description": "Mutual TLS handshakes failed and downstream authentication was rejected. The client certificate had not been renewed before expiry.",
+    "resolution_summary": "Renewed the client certificate, reloaded the service, and verified successful TLS authentication.",
+    "tags": [
+      "authentication",
+      "certificate",
+      "tls"
+    ]
+  },
+  {
+    "id": "INC-0100",
+    "created_at": "2026-04-05T07:15:20Z",
+    "environment": "dev",
+    "service": "orders-worker",
+    "severity": "SEV3",
+    "title": "Insufficient orders-worker consumers delay queued jobs",
+    "description": "Queued jobs were delayed while worker CPU usage stayed near capacity. The consumer replica count was too low for the incoming message rate.",
+    "resolution_summary": "Increased consumer replicas within downstream capacity, drained the queue, and configured scaling on queue age.",
+    "tags": [
+      "queue",
+      "backlog",
+      "worker-capacity"
+    ]
+  },
+  {
+    "id": "INC-0101",
+    "created_at": "2026-02-02T01:09:51Z",
+    "environment": "prod",
+    "service": "notifications-worker",
+    "severity": "SEV2",
+    "title": "DNS lookup timeouts interrupt notifications-worker outbound requests",
+    "description": "DNS queries timed out even though target services were healthy. The resolver configuration still referenced a DNS server removed during maintenance.",
+    "resolution_summary": "Removed the retired DNS server from resolver configuration, reloaded affected instances, and verified repeated name lookups.",
+    "tags": [
+      "dns",
+      "network",
+      "timeout"
+    ]
+  },
+  {
+    "id": "INC-0102",
+    "created_at": "2026-04-20T14:15:26Z",
+    "environment": "dev",
+    "service": "billing-api",
+    "severity": "SEV1",
+    "title": "Egress firewall blocks billing-api payment requests",
+    "description": "Payment authorization attempts timed out before a connection was established. An egress firewall rule blocked the payment provider's documented address range.",
+    "resolution_summary": "Restored the payment provider egress allowlist and verified connectivity. Reconciled payment statuses before retrying unresolved authorizations.",
+    "tags": [
+      "payment",
+      "timeout",
+      "firewall"
+    ]
+  },
+  {
+    "id": "INC-0103",
+    "created_at": "2026-02-05T06:55:07Z",
+    "environment": "dev",
+    "service": "billing-worker",
+    "severity": "SEV2",
+    "title": "Unrotated logs fill the billing-worker data volume",
+    "description": "Disk utilization reached capacity and writes to the local volume failed. Log rotation was disabled, allowing local application logs to fill the volume.",
+    "resolution_summary": "Archived and removed expired application logs, restored log rotation, and verified free space and successful writes.",
+    "tags": [
+      "storage",
+      "disk-full",
+      "log-rotation"
+    ]
+  },
+  {
+    "id": "INC-0104",
+    "created_at": "2026-03-30T07:03:08Z",
+    "environment": "stage",
+    "service": "catalog-api",
+    "severity": "SEV3",
+    "title": "Cache stampede overloads catalog-api database reads",
+    "description": "A sudden drop in cache hit rate coincided with slow responses and database load. Popular cache entries used identical expiration times, triggering concurrent refreshes.",
+    "resolution_summary": "Added expiration jitter and single-flight cache refresh, warmed popular entries, and verified database load stabilized.",
+    "tags": [
+      "cache",
+      "latency",
+      "database"
+    ]
+  },
+  {
+    "id": "INC-0105",
+    "created_at": "2026-02-18T23:40:13Z",
+    "environment": "dev",
+    "service": "webhooks-worker",
+    "severity": "SEV3",
+    "title": "Immediate retries amplify provider rate limits in webhooks-worker",
+    "description": "The external provider returned HTTP 429 while retry volume continued rising. The retry loop ignored Retry-After and had no backoff or concurrency cap.",
+    "resolution_summary": "Honored Retry-After, added exponential backoff with jitter, capped concurrency, and verified delivery recovered within provider limits.",
+    "tags": [
+      "rate-limit",
+      "retry",
+      "http-429"
+    ]
+  },
+  {
+    "id": "INC-0106",
+    "created_at": "2026-02-13T12:57:03Z",
+    "environment": "dev",
+    "service": "exports-worker",
+    "severity": "SEV4",
+    "title": "Large export exhausts memory in exports-worker",
+    "description": "Large export jobs were killed when memory usage exceeded the container limit. The export implementation buffered the entire result set in memory.",
+    "resolution_summary": "Replaced full-result buffering with bounded streaming batches, reran failed exports, and verified memory stayed within limits.",
+    "tags": [
+      "memory",
+      "export",
+      "oom"
+    ]
+  },
+  {
+    "id": "INC-0107",
+    "created_at": "2026-02-08T17:05:17Z",
+    "environment": "dev",
+    "service": "orders-api",
+    "severity": "SEV3",
+    "title": "Missing schema migration causes orders-api errors after release",
+    "description": "Requests returned HTTP 500 with column-does-not-exist errors after deployment. The application was deployed before its backward-compatible database migration ran.",
+    "resolution_summary": "Rolled back the application, applied and verified the missing migration, then redeployed and checked affected queries.",
+    "tags": [
+      "database",
+      "migration",
+      "http-500"
+    ]
+  },
+  {
+    "id": "INC-0108",
+    "created_at": "2026-04-02T22:57:16Z",
+    "environment": "dev",
+    "service": "inventory-api",
+    "severity": "SEV4",
+    "title": "Missing database index slows inventory-api lookups",
+    "description": "Request latency rose alongside database CPU and rows scanned per query. A frequently used filter column had no supporting index, causing full table scans.",
+    "resolution_summary": "Added an index matching the lookup filter, verified the query plan used it, and confirmed latency and database CPU recovered.",
+    "tags": [
+      "database",
+      "index",
+      "latency"
+    ]
+  },
+  {
+    "id": "INC-0109",
+    "created_at": "2026-02-19T18:10:55Z",
+    "environment": "stage",
+    "service": "inventory-api",
+    "severity": "SEV1",
+    "title": "inventory-api returns 503 when database connections run out",
+    "description": "Requests failed with connection acquisition timeouts during a traffic spike. Connections were not released after exceptions in request handlers.",
+    "resolution_summary": "Fixed connection cleanup in the exception handler, restarted affected instances, and verified pool usage recovered.",
+    "tags": [
+      "database",
+      "connection-pool",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0110",
+    "created_at": "2026-01-21T23:46:36Z",
+    "environment": "dev",
+    "service": "billing-api",
+    "severity": "SEV3",
+    "title": "Incorrect database hostname breaks billing-api readiness",
+    "description": "The rollout stalled with HTTP 503 responses and database host lookup failures. The database hostname in the new configuration was incorrect.",
+    "resolution_summary": "Restored the correct database hostname and redeployed. Readiness checks and database connectivity passed.",
+    "tags": [
+      "configuration",
+      "deployment",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0111",
+    "created_at": "2026-02-08T12:17:01Z",
+    "environment": "dev",
+    "service": "orders-api",
+    "severity": "SEV3",
+    "title": "Service authentication fails after certificate expiry in orders-api",
+    "description": "Service-to-service requests failed with certificate-expired errors. The client certificate had not been renewed before expiry.",
+    "resolution_summary": "Renewed the client certificate, reloaded the service, and verified successful TLS authentication.",
+    "tags": [
+      "authentication",
+      "certificate",
+      "tls"
+    ]
+  },
+  {
+    "id": "INC-0112",
+    "created_at": "2026-05-31T00:01:18Z",
+    "environment": "stage",
+    "service": "billing-worker",
+    "severity": "SEV4",
+    "title": "Queue backlog grows while billing-worker workers are saturated",
+    "description": "Queue depth and oldest message age increased under sustained load. The consumer replica count was too low for the incoming message rate.",
+    "resolution_summary": "Increased consumer replicas within downstream capacity, drained the queue, and configured scaling on queue age.",
+    "tags": [
+      "queue",
+      "backlog",
+      "worker-capacity"
+    ]
+  },
+  {
+    "id": "INC-0113",
+    "created_at": "2026-04-14T10:46:22Z",
+    "environment": "prod",
+    "service": "payments-api",
+    "severity": "SEV4",
+    "title": "Stale resolver configuration causes DNS errors in payments-api",
+    "description": "Outbound calls failed intermittently with temporary name resolution errors. The resolver configuration still referenced a DNS server removed during maintenance.",
+    "resolution_summary": "Removed the retired DNS server from resolver configuration, reloaded affected instances, and verified repeated name lookups.",
+    "tags": [
+      "dns",
+      "network",
+      "timeout"
+    ]
+  },
+  {
+    "id": "INC-0114",
+    "created_at": "2026-05-06T17:46:13Z",
+    "environment": "stage",
+    "service": "billing-api",
+    "severity": "SEV1",
+    "title": "Egress firewall blocks billing-api payment requests",
+    "description": "Payment requests failed with TCP connect timeouts after a network policy change. An egress firewall rule blocked the payment provider's documented address range.",
+    "resolution_summary": "Restored the payment provider egress allowlist and verified connectivity. Reconciled payment statuses before retrying unresolved authorizations.",
+    "tags": [
+      "payment",
+      "timeout",
+      "firewall"
+    ]
+  },
+  {
+    "id": "INC-0115",
+    "created_at": "2026-03-26T04:21:55Z",
+    "environment": "stage",
+    "service": "reports-worker",
+    "severity": "SEV3",
+    "title": "Unrotated logs fill the reports-worker data volume",
+    "description": "Jobs failed with no-space-left-on-device errors. Log rotation was disabled, allowing local application logs to fill the volume.",
+    "resolution_summary": "Archived and removed expired application logs, restored log rotation, and verified free space and successful writes.",
+    "tags": [
+      "storage",
+      "disk-full",
+      "log-rotation"
+    ]
+  },
+  {
+    "id": "INC-0116",
+    "created_at": "2026-02-04T04:51:27Z",
+    "environment": "stage",
+    "service": "inventory-api",
+    "severity": "SEV4",
+    "title": "Cache stampede overloads inventory-api database reads",
+    "description": "A sudden drop in cache hit rate coincided with slow responses and database load. Popular cache entries used identical expiration times, triggering concurrent refreshes.",
+    "resolution_summary": "Added expiration jitter and single-flight cache refresh, warmed popular entries, and verified database load stabilized.",
+    "tags": [
+      "cache",
+      "latency",
+      "database"
+    ]
+  },
+  {
+    "id": "INC-0117",
+    "created_at": "2026-06-10T08:12:07Z",
+    "environment": "stage",
+    "service": "webhooks-worker",
+    "severity": "SEV3",
+    "title": "Immediate retries amplify provider rate limits in webhooks-worker",
+    "description": "The external provider returned HTTP 429 while retry volume continued rising. The retry loop ignored Retry-After and had no backoff or concurrency cap.",
+    "resolution_summary": "Honored Retry-After, added exponential backoff with jitter, capped concurrency, and verified delivery recovered within provider limits.",
+    "tags": [
+      "rate-limit",
+      "retry",
+      "http-429"
+    ]
+  },
+  {
+    "id": "INC-0118",
+    "created_at": "2026-06-21T04:41:56Z",
+    "environment": "prod",
+    "service": "exports-worker",
+    "severity": "SEV2",
+    "title": "Unbounded export buffering causes exports-worker restarts",
+    "description": "Worker restarts interrupted exports while smaller jobs continued to succeed. The export implementation buffered the entire result set in memory.",
+    "resolution_summary": "Replaced full-result buffering with bounded streaming batches, reran failed exports, and verified memory stayed within limits.",
+    "tags": [
+      "memory",
+      "export",
+      "oom"
+    ]
+  },
+  {
+    "id": "INC-0119",
+    "created_at": "2026-01-06T13:45:06Z",
+    "environment": "prod",
+    "service": "billing-api",
+    "severity": "SEV2",
+    "title": "Missing schema migration causes billing-api errors after release",
+    "description": "The new application release failed queries referencing a newly introduced column. The application was deployed before its backward-compatible database migration ran.",
+    "resolution_summary": "Rolled back the application, applied and verified the missing migration, then redeployed and checked affected queries.",
+    "tags": [
+      "database",
+      "migration",
+      "http-500"
+    ]
+  },
+  {
+    "id": "INC-0120",
+    "created_at": "2026-03-10T21:36:15Z",
+    "environment": "stage",
+    "service": "inventory-api",
+    "severity": "SEV3",
+    "title": "Full table scans increase inventory-api request latency",
+    "description": "Request latency rose alongside database CPU and rows scanned per query. A frequently used filter column had no supporting index, causing full table scans.",
+    "resolution_summary": "Added an index matching the lookup filter, verified the query plan used it, and confirmed latency and database CPU recovered.",
+    "tags": [
+      "database",
+      "index",
+      "latency"
+    ]
+  },
+  {
+    "id": "INC-0121",
+    "created_at": "2026-01-02T23:18:27Z",
+    "environment": "qa",
+    "service": "inventory-api",
+    "severity": "SEV1",
+    "title": "inventory-api returns 503 when database connections run out",
+    "description": "HTTP 503 responses increased as the database connection pool reached its limit. Connections were not released after exceptions in request handlers.",
+    "resolution_summary": "Fixed connection cleanup in the exception handler, restarted affected instances, and verified pool usage recovered.",
+    "tags": [
+      "database",
+      "connection-pool",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0122",
+    "created_at": "2026-04-18T19:18:31Z",
+    "environment": "qa",
+    "service": "billing-api",
+    "severity": "SEV4",
+    "title": "Incorrect database hostname breaks billing-api readiness",
+    "description": "The rollout stalled with HTTP 503 responses and database host lookup failures. The database hostname in the new configuration was incorrect.",
+    "resolution_summary": "Restored the correct database hostname and redeployed. Readiness checks and database connectivity passed.",
+    "tags": [
+      "configuration",
+      "deployment",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0123",
+    "created_at": "2026-06-03T23:20:06Z",
+    "environment": "dev",
+    "service": "payments-api",
+    "severity": "SEV1",
+    "title": "Expired client certificate blocks payments-api requests",
+    "description": "Service-to-service requests failed with certificate-expired errors. The client certificate had not been renewed before expiry.",
+    "resolution_summary": "Renewed the client certificate, reloaded the service, and verified successful TLS authentication.",
+    "tags": [
+      "authentication",
+      "certificate",
+      "tls"
+    ]
+  },
+  {
+    "id": "INC-0124",
+    "created_at": "2026-05-15T07:57:42Z",
+    "environment": "qa",
+    "service": "orders-worker",
+    "severity": "SEV3",
+    "title": "Insufficient orders-worker consumers delay queued jobs",
+    "description": "Queued jobs were delayed while worker CPU usage stayed near capacity. The consumer replica count was too low for the incoming message rate.",
+    "resolution_summary": "Increased consumer replicas within downstream capacity, drained the queue, and configured scaling on queue age.",
+    "tags": [
+      "queue",
+      "backlog",
+      "worker-capacity"
+    ]
+  },
+  {
+    "id": "INC-0125",
+    "created_at": "2026-04-14T02:16:31Z",
+    "environment": "stage",
+    "service": "notifications-worker",
+    "severity": "SEV3",
+    "title": "Stale resolver configuration causes DNS errors in notifications-worker",
+    "description": "DNS queries timed out even though target services were healthy. The resolver configuration still referenced a DNS server removed during maintenance.",
+    "resolution_summary": "Removed the retired DNS server from resolver configuration, reloaded affected instances, and verified repeated name lookups.",
+    "tags": [
+      "dns",
+      "network",
+      "timeout"
+    ]
+  },
+  {
+    "id": "INC-0126",
+    "created_at": "2026-03-30T02:36:22Z",
+    "environment": "stage",
+    "service": "billing-api",
+    "severity": "SEV2",
+    "title": "Egress firewall blocks billing-api payment requests",
+    "description": "Payment authorization attempts timed out before a connection was established. An egress firewall rule blocked the payment provider's documented address range.",
+    "resolution_summary": "Restored the payment provider egress allowlist and verified connectivity. Reconciled payment statuses before retrying unresolved authorizations.",
+    "tags": [
+      "payment",
+      "timeout",
+      "firewall"
+    ]
+  },
+  {
+    "id": "INC-0127",
+    "created_at": "2026-05-21T01:25:43Z",
+    "environment": "qa",
+    "service": "reports-worker",
+    "severity": "SEV2",
+    "title": "reports-worker stops writing when storage capacity is exhausted",
+    "description": "Jobs failed with no-space-left-on-device errors. Log rotation was disabled, allowing local application logs to fill the volume.",
+    "resolution_summary": "Archived and removed expired application logs, restored log rotation, and verified free space and successful writes.",
+    "tags": [
+      "storage",
+      "disk-full",
+      "log-rotation"
+    ]
+  },
+  {
+    "id": "INC-0128",
+    "created_at": "2026-02-12T00:25:31Z",
+    "environment": "prod",
+    "service": "catalog-api",
+    "severity": "SEV3",
+    "title": "Cache stampede overloads catalog-api database reads",
+    "description": "Latency and database reads spiked when popular cache entries expired together. Popular cache entries used identical expiration times, triggering concurrent refreshes.",
+    "resolution_summary": "Added expiration jitter and single-flight cache refresh, warmed popular entries, and verified database load stabilized.",
+    "tags": [
+      "cache",
+      "latency",
+      "database"
+    ]
+  },
+  {
+    "id": "INC-0129",
+    "created_at": "2026-02-27T12:36:30Z",
+    "environment": "qa",
+    "service": "notifications-worker",
+    "severity": "SEV3",
+    "title": "Immediate retries amplify provider rate limits in notifications-worker",
+    "description": "Delivery delays increased as rejected requests were immediately resubmitted. The retry loop ignored Retry-After and had no backoff or concurrency cap.",
+    "resolution_summary": "Honored Retry-After, added exponential backoff with jitter, capped concurrency, and verified delivery recovered within provider limits.",
+    "tags": [
+      "rate-limit",
+      "retry",
+      "http-429"
+    ]
+  },
+  {
+    "id": "INC-0130",
+    "created_at": "2026-05-18T11:36:19Z",
+    "environment": "qa",
+    "service": "reports-worker",
+    "severity": "SEV3",
+    "title": "Large export exhausts memory in reports-worker",
+    "description": "Large export jobs were killed when memory usage exceeded the container limit. The export implementation buffered the entire result set in memory.",
+    "resolution_summary": "Replaced full-result buffering with bounded streaming batches, reran failed exports, and verified memory stayed within limits.",
+    "tags": [
+      "memory",
+      "export",
+      "oom"
+    ]
+  },
+  {
+    "id": "INC-0131",
+    "created_at": "2026-02-26T17:27:19Z",
+    "environment": "qa",
+    "service": "catalog-api",
+    "severity": "SEV3",
+    "title": "catalog-api queries fail because a required column is absent",
+    "description": "Requests returned HTTP 500 with column-does-not-exist errors after deployment. The application was deployed before its backward-compatible database migration ran.",
+    "resolution_summary": "Rolled back the application, applied and verified the missing migration, then redeployed and checked affected queries.",
+    "tags": [
+      "database",
+      "migration",
+      "http-500"
+    ]
+  },
+  {
+    "id": "INC-0132",
+    "created_at": "2026-04-22T11:19:59Z",
+    "environment": "stage",
+    "service": "inventory-api",
+    "severity": "SEV3",
+    "title": "Full table scans increase inventory-api request latency",
+    "description": "Request latency rose alongside database CPU and rows scanned per query. A frequently used filter column had no supporting index, causing full table scans.",
+    "resolution_summary": "Added an index matching the lookup filter, verified the query plan used it, and confirmed latency and database CPU recovered.",
+    "tags": [
+      "database",
+      "index",
+      "latency"
+    ]
+  },
+  {
+    "id": "INC-0133",
+    "created_at": "2026-02-05T19:11:49Z",
+    "environment": "dev",
+    "service": "catalog-api",
+    "severity": "SEV2",
+    "title": "Database connection exhaustion causes catalog-api failures",
+    "description": "Requests failed with connection acquisition timeouts during a traffic spike. Connections were not released after exceptions in request handlers.",
+    "resolution_summary": "Fixed connection cleanup in the exception handler, restarted affected instances, and verified pool usage recovered.",
+    "tags": [
+      "database",
+      "connection-pool",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0134",
+    "created_at": "2026-03-19T19:25:55Z",
+    "environment": "prod",
+    "service": "orders-api",
+    "severity": "SEV2",
+    "title": "orders-api returns 503 after configuration deployment",
+    "description": "All newly deployed instances failed readiness checks. The database hostname in the new configuration was incorrect.",
+    "resolution_summary": "Restored the correct database hostname and redeployed. Readiness checks and database connectivity passed.",
+    "tags": [
+      "configuration",
+      "deployment",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0135",
+    "created_at": "2026-06-07T12:11:45Z",
+    "environment": "stage",
+    "service": "auth-service",
+    "severity": "SEV1",
+    "title": "Service authentication fails after certificate expiry in auth-service",
+    "description": "Service-to-service requests failed with certificate-expired errors. The client certificate had not been renewed before expiry.",
+    "resolution_summary": "Renewed the client certificate, reloaded the service, and verified successful TLS authentication.",
+    "tags": [
+      "authentication",
+      "certificate",
+      "tls"
+    ]
+  },
+  {
+    "id": "INC-0136",
+    "created_at": "2026-05-29T10:33:52Z",
+    "environment": "prod",
+    "service": "billing-worker",
+    "severity": "SEV4",
+    "title": "Queue backlog grows while billing-worker workers are saturated",
+    "description": "Queued jobs were delayed while worker CPU usage stayed near capacity. The consumer replica count was too low for the incoming message rate.",
+    "resolution_summary": "Increased consumer replicas within downstream capacity, drained the queue, and configured scaling on queue age.",
+    "tags": [
+      "queue",
+      "backlog",
+      "worker-capacity"
+    ]
+  },
+  {
+    "id": "INC-0137",
+    "created_at": "2026-06-26T09:56:14Z",
+    "environment": "prod",
+    "service": "payments-api",
+    "severity": "SEV3",
+    "title": "Stale resolver configuration causes DNS errors in payments-api",
+    "description": "DNS queries timed out even though target services were healthy. The resolver configuration still referenced a DNS server removed during maintenance.",
+    "resolution_summary": "Removed the retired DNS server from resolver configuration, reloaded affected instances, and verified repeated name lookups.",
+    "tags": [
+      "dns",
+      "network",
+      "timeout"
+    ]
+  },
+  {
+    "id": "INC-0138",
+    "created_at": "2026-05-01T14:11:49Z",
+    "environment": "dev",
+    "service": "billing-api",
+    "severity": "SEV3",
+    "title": "Payment provider connections time out in billing-api",
+    "description": "Payment authorization attempts timed out before a connection was established. An egress firewall rule blocked the payment provider's documented address range.",
+    "resolution_summary": "Restored the payment provider egress allowlist and verified connectivity. Reconciled payment statuses before retrying unresolved authorizations.",
+    "tags": [
+      "payment",
+      "timeout",
+      "firewall"
+    ]
+  },
+  {
+    "id": "INC-0139",
+    "created_at": "2026-02-10T23:26:55Z",
+    "environment": "stage",
+    "service": "audit-service",
+    "severity": "SEV3",
+    "title": "audit-service stops writing when storage capacity is exhausted",
+    "description": "Jobs failed with no-space-left-on-device errors. Log rotation was disabled, allowing local application logs to fill the volume.",
+    "resolution_summary": "Archived and removed expired application logs, restored log rotation, and verified free space and successful writes.",
+    "tags": [
+      "storage",
+      "disk-full",
+      "log-rotation"
+    ]
+  },
+  {
+    "id": "INC-0140",
+    "created_at": "2026-02-03T18:01:47Z",
+    "environment": "dev",
+    "service": "catalog-api",
+    "severity": "SEV2",
+    "title": "Synchronized cache expiry increases catalog-api latency",
+    "description": "A sudden drop in cache hit rate coincided with slow responses and database load. Popular cache entries used identical expiration times, triggering concurrent refreshes.",
+    "resolution_summary": "Added expiration jitter and single-flight cache refresh, warmed popular entries, and verified database load stabilized.",
+    "tags": [
+      "cache",
+      "latency",
+      "database"
+    ]
+  },
+  {
+    "id": "INC-0141",
+    "created_at": "2026-05-14T20:42:08Z",
+    "environment": "prod",
+    "service": "webhooks-worker",
+    "severity": "SEV3",
+    "title": "Immediate retries amplify provider rate limits in webhooks-worker",
+    "description": "The external provider returned HTTP 429 while retry volume continued rising. The retry loop ignored Retry-After and had no backoff or concurrency cap.",
+    "resolution_summary": "Honored Retry-After, added exponential backoff with jitter, capped concurrency, and verified delivery recovered within provider limits.",
+    "tags": [
+      "rate-limit",
+      "retry",
+      "http-429"
+    ]
+  },
+  {
+    "id": "INC-0142",
+    "created_at": "2026-05-18T06:39:10Z",
+    "environment": "stage",
+    "service": "exports-worker",
+    "severity": "SEV4",
+    "title": "Unbounded export buffering causes exports-worker restarts",
+    "description": "Large export jobs were killed when memory usage exceeded the container limit. The export implementation buffered the entire result set in memory.",
+    "resolution_summary": "Replaced full-result buffering with bounded streaming batches, reran failed exports, and verified memory stayed within limits.",
+    "tags": [
+      "memory",
+      "export",
+      "oom"
+    ]
+  },
+  {
+    "id": "INC-0143",
+    "created_at": "2026-02-15T07:50:01Z",
+    "environment": "stage",
+    "service": "catalog-api",
+    "severity": "SEV3",
+    "title": "Missing schema migration causes catalog-api errors after release",
+    "description": "The new application release failed queries referencing a newly introduced column. The application was deployed before its backward-compatible database migration ran.",
+    "resolution_summary": "Rolled back the application, applied and verified the missing migration, then redeployed and checked affected queries.",
+    "tags": [
+      "database",
+      "migration",
+      "http-500"
+    ]
+  },
+  {
+    "id": "INC-0144",
+    "created_at": "2026-04-16T17:50:40Z",
+    "environment": "qa",
+    "service": "inventory-api",
+    "severity": "SEV4",
+    "title": "Missing database index slows inventory-api lookups",
+    "description": "Request latency rose alongside database CPU and rows scanned per query. A frequently used filter column had no supporting index, causing full table scans.",
+    "resolution_summary": "Added an index matching the lookup filter, verified the query plan used it, and confirmed latency and database CPU recovered.",
+    "tags": [
+      "database",
+      "index",
+      "latency"
+    ]
+  },
+  {
+    "id": "INC-0145",
+    "created_at": "2026-01-14T20:47:38Z",
+    "environment": "dev",
+    "service": "orders-api",
+    "severity": "SEV1",
+    "title": "Database connection exhaustion causes orders-api failures",
+    "description": "HTTP 503 responses increased as the database connection pool reached its limit. Connections were not released after exceptions in request handlers.",
+    "resolution_summary": "Fixed connection cleanup in the exception handler, restarted affected instances, and verified pool usage recovered.",
+    "tags": [
+      "database",
+      "connection-pool",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0146",
+    "created_at": "2026-01-25T03:31:48Z",
+    "environment": "prod",
+    "service": "billing-api",
+    "severity": "SEV4",
+    "title": "Incorrect database hostname breaks billing-api readiness",
+    "description": "The rollout stalled with HTTP 503 responses and database host lookup failures. The database hostname in the new configuration was incorrect.",
+    "resolution_summary": "Restored the correct database hostname and redeployed. Readiness checks and database connectivity passed.",
+    "tags": [
+      "configuration",
+      "deployment",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0147",
+    "created_at": "2026-04-08T04:22:09Z",
+    "environment": "prod",
+    "service": "payments-api",
+    "severity": "SEV2",
+    "title": "Service authentication fails after certificate expiry in payments-api",
+    "description": "Service-to-service requests failed with certificate-expired errors. The client certificate had not been renewed before expiry.",
+    "resolution_summary": "Renewed the client certificate, reloaded the service, and verified successful TLS authentication.",
+    "tags": [
+      "authentication",
+      "certificate",
+      "tls"
+    ]
+  },
+  {
+    "id": "INC-0148",
+    "created_at": "2026-05-23T15:10:34Z",
+    "environment": "stage",
+    "service": "orders-worker",
+    "severity": "SEV4",
+    "title": "Insufficient orders-worker consumers delay queued jobs",
+    "description": "Queue depth and oldest message age increased under sustained load. The consumer replica count was too low for the incoming message rate.",
+    "resolution_summary": "Increased consumer replicas within downstream capacity, drained the queue, and configured scaling on queue age.",
+    "tags": [
+      "queue",
+      "backlog",
+      "worker-capacity"
+    ]
+  },
+  {
+    "id": "INC-0149",
+    "created_at": "2026-02-14T10:51:54Z",
+    "environment": "dev",
+    "service": "orders-api",
+    "severity": "SEV4",
+    "title": "Stale resolver configuration causes DNS errors in orders-api",
+    "description": "Outbound calls failed intermittently with temporary name resolution errors. The resolver configuration still referenced a DNS server removed during maintenance.",
+    "resolution_summary": "Removed the retired DNS server from resolver configuration, reloaded affected instances, and verified repeated name lookups.",
+    "tags": [
+      "dns",
+      "network",
+      "timeout"
+    ]
+  },
+  {
+    "id": "INC-0150",
+    "created_at": "2026-04-02T08:41:33Z",
+    "environment": "prod",
+    "service": "payments-api",
+    "severity": "SEV2",
+    "title": "Payment provider connections time out in payments-api",
+    "description": "Payment requests failed with TCP connect timeouts after a network policy change. An egress firewall rule blocked the payment provider's documented address range.",
+    "resolution_summary": "Restored the payment provider egress allowlist and verified connectivity. Reconciled payment statuses before retrying unresolved authorizations.",
+    "tags": [
+      "payment",
+      "timeout",
+      "firewall"
+    ]
+  },
+  {
+    "id": "INC-0151",
+    "created_at": "2026-06-08T02:39:23Z",
+    "environment": "prod",
+    "service": "audit-service",
+    "severity": "SEV1",
+    "title": "Unrotated logs fill the audit-service data volume",
+    "description": "Disk utilization reached capacity and writes to the local volume failed. Log rotation was disabled, allowing local application logs to fill the volume.",
+    "resolution_summary": "Archived and removed expired application logs, restored log rotation, and verified free space and successful writes.",
+    "tags": [
+      "storage",
+      "disk-full",
+      "log-rotation"
+    ]
+  },
+  {
+    "id": "INC-0152",
+    "created_at": "2026-03-06T17:19:46Z",
+    "environment": "stage",
+    "service": "inventory-api",
+    "severity": "SEV4",
+    "title": "Synchronized cache expiry increases inventory-api latency",
+    "description": "Latency and database reads spiked when popular cache entries expired together. Popular cache entries used identical expiration times, triggering concurrent refreshes.",
+    "resolution_summary": "Added expiration jitter and single-flight cache refresh, warmed popular entries, and verified database load stabilized.",
+    "tags": [
+      "cache",
+      "latency",
+      "database"
+    ]
+  },
+  {
+    "id": "INC-0153",
+    "created_at": "2026-03-21T22:24:18Z",
+    "environment": "prod",
+    "service": "webhooks-worker",
+    "severity": "SEV3",
+    "title": "webhooks-worker retry storm triggers repeated HTTP 429 responses",
+    "description": "The external provider returned HTTP 429 while retry volume continued rising. The retry loop ignored Retry-After and had no backoff or concurrency cap.",
+    "resolution_summary": "Honored Retry-After, added exponential backoff with jitter, capped concurrency, and verified delivery recovered within provider limits.",
+    "tags": [
+      "rate-limit",
+      "retry",
+      "http-429"
+    ]
+  },
+  {
+    "id": "INC-0154",
+    "created_at": "2026-01-18T02:23:18Z",
+    "environment": "stage",
+    "service": "exports-worker",
+    "severity": "SEV3",
+    "title": "Unbounded export buffering causes exports-worker restarts",
+    "description": "Large export jobs were killed when memory usage exceeded the container limit. The export implementation buffered the entire result set in memory.",
+    "resolution_summary": "Replaced full-result buffering with bounded streaming batches, reran failed exports, and verified memory stayed within limits.",
+    "tags": [
+      "memory",
+      "export",
+      "oom"
+    ]
+  },
+  {
+    "id": "INC-0155",
+    "created_at": "2026-06-17T22:46:31Z",
+    "environment": "dev",
+    "service": "billing-api",
+    "severity": "SEV3",
+    "title": "billing-api queries fail because a required column is absent",
+    "description": "The new application release failed queries referencing a newly introduced column. The application was deployed before its backward-compatible database migration ran.",
+    "resolution_summary": "Rolled back the application, applied and verified the missing migration, then redeployed and checked affected queries.",
+    "tags": [
+      "database",
+      "migration",
+      "http-500"
+    ]
+  },
+  {
+    "id": "INC-0156",
+    "created_at": "2026-02-06T10:11:52Z",
+    "environment": "stage",
+    "service": "inventory-api",
+    "severity": "SEV4",
+    "title": "Full table scans increase inventory-api request latency",
+    "description": "Request latency rose alongside database CPU and rows scanned per query. A frequently used filter column had no supporting index, causing full table scans.",
+    "resolution_summary": "Added an index matching the lookup filter, verified the query plan used it, and confirmed latency and database CPU recovered.",
+    "tags": [
+      "database",
+      "index",
+      "latency"
+    ]
+  },
+  {
+    "id": "INC-0157",
+    "created_at": "2026-02-09T12:39:00Z",
+    "environment": "stage",
+    "service": "orders-api",
+    "severity": "SEV3",
+    "title": "orders-api returns 503 when database connections run out",
+    "description": "HTTP 503 responses increased as the database connection pool reached its limit. Connections were not released after exceptions in request handlers.",
+    "resolution_summary": "Fixed connection cleanup in the exception handler, restarted affected instances, and verified pool usage recovered.",
+    "tags": [
+      "database",
+      "connection-pool",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0158",
+    "created_at": "2026-06-21T01:02:33Z",
+    "environment": "prod",
+    "service": "billing-api",
+    "severity": "SEV2",
+    "title": "billing-api returns 503 after configuration deployment",
+    "description": "All newly deployed instances failed readiness checks. The database hostname in the new configuration was incorrect.",
+    "resolution_summary": "Restored the correct database hostname and redeployed. Readiness checks and database connectivity passed.",
+    "tags": [
+      "configuration",
+      "deployment",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0159",
+    "created_at": "2026-01-31T18:05:44Z",
+    "environment": "stage",
+    "service": "orders-api",
+    "severity": "SEV3",
+    "title": "Service authentication fails after certificate expiry in orders-api",
+    "description": "Mutual TLS handshakes failed and downstream authentication was rejected. The client certificate had not been renewed before expiry.",
+    "resolution_summary": "Renewed the client certificate, reloaded the service, and verified successful TLS authentication.",
+    "tags": [
+      "authentication",
+      "certificate",
+      "tls"
+    ]
+  },
+  {
+    "id": "INC-0160",
+    "created_at": "2026-02-13T15:10:51Z",
+    "environment": "dev",
+    "service": "notifications-worker",
+    "severity": "SEV3",
+    "title": "Queue backlog grows while notifications-worker workers are saturated",
+    "description": "Queue depth and oldest message age increased under sustained load. The consumer replica count was too low for the incoming message rate.",
+    "resolution_summary": "Increased consumer replicas within downstream capacity, drained the queue, and configured scaling on queue age.",
+    "tags": [
+      "queue",
+      "backlog",
+      "worker-capacity"
+    ]
+  },
+  {
+    "id": "INC-0161",
+    "created_at": "2026-05-20T03:36:48Z",
+    "environment": "stage",
+    "service": "payments-api",
+    "severity": "SEV4",
+    "title": "Stale resolver configuration causes DNS errors in payments-api",
+    "description": "DNS queries timed out even though target services were healthy. The resolver configuration still referenced a DNS server removed during maintenance.",
+    "resolution_summary": "Removed the retired DNS server from resolver configuration, reloaded affected instances, and verified repeated name lookups.",
+    "tags": [
+      "dns",
+      "network",
+      "timeout"
+    ]
+  },
+  {
+    "id": "INC-0162",
+    "created_at": "2026-04-02T16:42:13Z",
+    "environment": "qa",
+    "service": "checkout-api",
+    "severity": "SEV2",
+    "title": "Payment provider connections time out in checkout-api",
+    "description": "Payment requests failed with TCP connect timeouts after a network policy change. An egress firewall rule blocked the payment provider's documented address range.",
+    "resolution_summary": "Restored the payment provider egress allowlist and verified connectivity. Reconciled payment statuses before retrying unresolved authorizations.",
+    "tags": [
+      "payment",
+      "timeout",
+      "firewall"
+    ]
+  },
+  {
+    "id": "INC-0163",
+    "created_at": "2026-06-29T00:13:01Z",
+    "environment": "qa",
+    "service": "reports-worker",
+    "severity": "SEV1",
+    "title": "Unrotated logs fill the reports-worker data volume",
+    "description": "Disk utilization reached capacity and writes to the local volume failed. Log rotation was disabled, allowing local application logs to fill the volume.",
+    "resolution_summary": "Archived and removed expired application logs, restored log rotation, and verified free space and successful writes.",
+    "tags": [
+      "storage",
+      "disk-full",
+      "log-rotation"
+    ]
+  },
+  {
+    "id": "INC-0164",
+    "created_at": "2026-06-02T23:01:45Z",
+    "environment": "stage",
+    "service": "inventory-api",
+    "severity": "SEV2",
+    "title": "Cache stampede overloads inventory-api database reads",
+    "description": "A sudden drop in cache hit rate coincided with slow responses and database load. Popular cache entries used identical expiration times, triggering concurrent refreshes.",
+    "resolution_summary": "Added expiration jitter and single-flight cache refresh, warmed popular entries, and verified database load stabilized.",
+    "tags": [
+      "cache",
+      "latency",
+      "database"
+    ]
+  },
+  {
+    "id": "INC-0165",
+    "created_at": "2026-04-23T14:38:19Z",
+    "environment": "prod",
+    "service": "sync-worker",
+    "severity": "SEV2",
+    "title": "sync-worker retry storm triggers repeated HTTP 429 responses",
+    "description": "Delivery delays increased as rejected requests were immediately resubmitted. The retry loop ignored Retry-After and had no backoff or concurrency cap.",
+    "resolution_summary": "Honored Retry-After, added exponential backoff with jitter, capped concurrency, and verified delivery recovered within provider limits.",
+    "tags": [
+      "rate-limit",
+      "retry",
+      "http-429"
+    ]
+  },
+  {
+    "id": "INC-0166",
+    "created_at": "2026-03-06T13:16:56Z",
+    "environment": "prod",
+    "service": "exports-worker",
+    "severity": "SEV3",
+    "title": "Unbounded export buffering causes exports-worker restarts",
+    "description": "Large export jobs were killed when memory usage exceeded the container limit. The export implementation buffered the entire result set in memory.",
+    "resolution_summary": "Replaced full-result buffering with bounded streaming batches, reran failed exports, and verified memory stayed within limits.",
+    "tags": [
+      "memory",
+      "export",
+      "oom"
+    ]
+  },
+  {
+    "id": "INC-0167",
+    "created_at": "2026-02-16T08:54:52Z",
+    "environment": "prod",
+    "service": "catalog-api",
+    "severity": "SEV1",
+    "title": "catalog-api queries fail because a required column is absent",
+    "description": "Requests returned HTTP 500 with column-does-not-exist errors after deployment. The application was deployed before its backward-compatible database migration ran.",
+    "resolution_summary": "Rolled back the application, applied and verified the missing migration, then redeployed and checked affected queries.",
+    "tags": [
+      "database",
+      "migration",
+      "http-500"
+    ]
+  },
+  {
+    "id": "INC-0168",
+    "created_at": "2026-05-25T14:34:39Z",
+    "environment": "prod",
+    "service": "catalog-api",
+    "severity": "SEV4",
+    "title": "Full table scans increase catalog-api request latency",
+    "description": "Request latency rose alongside database CPU and rows scanned per query. A frequently used filter column had no supporting index, causing full table scans.",
+    "resolution_summary": "Added an index matching the lookup filter, verified the query plan used it, and confirmed latency and database CPU recovered.",
+    "tags": [
+      "database",
+      "index",
+      "latency"
+    ]
+  },
+  {
+    "id": "INC-0169",
+    "created_at": "2026-06-03T20:49:19Z",
+    "environment": "qa",
+    "service": "inventory-api",
+    "severity": "SEV2",
+    "title": "inventory-api returns 503 when database connections run out",
+    "description": "Requests failed with connection acquisition timeouts during a traffic spike. Connections were not released after exceptions in request handlers.",
+    "resolution_summary": "Fixed connection cleanup in the exception handler, restarted affected instances, and verified pool usage recovered.",
+    "tags": [
+      "database",
+      "connection-pool",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0170",
+    "created_at": "2026-04-25T14:26:24Z",
+    "environment": "stage",
+    "service": "inventory-api",
+    "severity": "SEV2",
+    "title": "Incorrect database hostname breaks inventory-api readiness",
+    "description": "All newly deployed instances failed readiness checks. The database hostname in the new configuration was incorrect.",
+    "resolution_summary": "Restored the correct database hostname and redeployed. Readiness checks and database connectivity passed.",
+    "tags": [
+      "configuration",
+      "deployment",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0171",
+    "created_at": "2026-06-26T18:57:56Z",
+    "environment": "prod",
+    "service": "orders-api",
+    "severity": "SEV1",
+    "title": "Service authentication fails after certificate expiry in orders-api",
+    "description": "Mutual TLS handshakes failed and downstream authentication was rejected. The client certificate had not been renewed before expiry.",
+    "resolution_summary": "Renewed the client certificate, reloaded the service, and verified successful TLS authentication.",
+    "tags": [
+      "authentication",
+      "certificate",
+      "tls"
+    ]
+  },
+  {
+    "id": "INC-0172",
+    "created_at": "2026-01-30T23:22:31Z",
+    "environment": "dev",
+    "service": "billing-worker",
+    "severity": "SEV3",
+    "title": "Insufficient billing-worker consumers delay queued jobs",
+    "description": "Queued jobs were delayed while worker CPU usage stayed near capacity. The consumer replica count was too low for the incoming message rate.",
+    "resolution_summary": "Increased consumer replicas within downstream capacity, drained the queue, and configured scaling on queue age.",
+    "tags": [
+      "queue",
+      "backlog",
+      "worker-capacity"
+    ]
+  },
+  {
+    "id": "INC-0173",
+    "created_at": "2026-05-15T12:14:14Z",
+    "environment": "prod",
+    "service": "notifications-worker",
+    "severity": "SEV4",
+    "title": "DNS lookup timeouts interrupt notifications-worker outbound requests",
+    "description": "DNS queries timed out even though target services were healthy. The resolver configuration still referenced a DNS server removed during maintenance.",
+    "resolution_summary": "Removed the retired DNS server from resolver configuration, reloaded affected instances, and verified repeated name lookups.",
+    "tags": [
+      "dns",
+      "network",
+      "timeout"
+    ]
+  },
+  {
+    "id": "INC-0174",
+    "created_at": "2026-06-16T20:49:29Z",
+    "environment": "prod",
+    "service": "billing-api",
+    "severity": "SEV2",
+    "title": "Egress firewall blocks billing-api payment requests",
+    "description": "Payment authorization attempts timed out before a connection was established. An egress firewall rule blocked the payment provider's documented address range.",
+    "resolution_summary": "Restored the payment provider egress allowlist and verified connectivity. Reconciled payment statuses before retrying unresolved authorizations.",
+    "tags": [
+      "payment",
+      "timeout",
+      "firewall"
+    ]
+  },
+  {
+    "id": "INC-0175",
+    "created_at": "2026-01-14T06:51:49Z",
+    "environment": "qa",
+    "service": "audit-service",
+    "severity": "SEV3",
+    "title": "Unrotated logs fill the audit-service data volume",
+    "description": "Jobs failed with no-space-left-on-device errors. Log rotation was disabled, allowing local application logs to fill the volume.",
+    "resolution_summary": "Archived and removed expired application logs, restored log rotation, and verified free space and successful writes.",
+    "tags": [
+      "storage",
+      "disk-full",
+      "log-rotation"
+    ]
+  },
+  {
+    "id": "INC-0176",
+    "created_at": "2026-01-18T13:11:53Z",
+    "environment": "prod",
+    "service": "pricing-api",
+    "severity": "SEV2",
+    "title": "Synchronized cache expiry increases pricing-api latency",
+    "description": "A sudden drop in cache hit rate coincided with slow responses and database load. Popular cache entries used identical expiration times, triggering concurrent refreshes.",
+    "resolution_summary": "Added expiration jitter and single-flight cache refresh, warmed popular entries, and verified database load stabilized.",
+    "tags": [
+      "cache",
+      "latency",
+      "database"
+    ]
+  },
+  {
+    "id": "INC-0177",
+    "created_at": "2026-05-15T18:16:47Z",
+    "environment": "stage",
+    "service": "notifications-worker",
+    "severity": "SEV2",
+    "title": "Immediate retries amplify provider rate limits in notifications-worker",
+    "description": "Delivery delays increased as rejected requests were immediately resubmitted. The retry loop ignored Retry-After and had no backoff or concurrency cap.",
+    "resolution_summary": "Honored Retry-After, added exponential backoff with jitter, capped concurrency, and verified delivery recovered within provider limits.",
+    "tags": [
+      "rate-limit",
+      "retry",
+      "http-429"
+    ]
+  },
+  {
+    "id": "INC-0178",
+    "created_at": "2026-02-26T23:11:34Z",
+    "environment": "stage",
+    "service": "reports-worker",
+    "severity": "SEV3",
+    "title": "Unbounded export buffering causes reports-worker restarts",
+    "description": "Large export jobs were killed when memory usage exceeded the container limit. The export implementation buffered the entire result set in memory.",
+    "resolution_summary": "Replaced full-result buffering with bounded streaming batches, reran failed exports, and verified memory stayed within limits.",
+    "tags": [
+      "memory",
+      "export",
+      "oom"
+    ]
+  },
+  {
+    "id": "INC-0179",
+    "created_at": "2026-04-14T03:24:52Z",
+    "environment": "prod",
+    "service": "orders-api",
+    "severity": "SEV3",
+    "title": "Missing schema migration causes orders-api errors after release",
+    "description": "Requests returned HTTP 500 with column-does-not-exist errors after deployment. The application was deployed before its backward-compatible database migration ran.",
+    "resolution_summary": "Rolled back the application, applied and verified the missing migration, then redeployed and checked affected queries.",
+    "tags": [
+      "database",
+      "migration",
+      "http-500"
+    ]
+  },
+  {
+    "id": "INC-0180",
+    "created_at": "2026-01-16T08:01:09Z",
+    "environment": "prod",
+    "service": "inventory-api",
+    "severity": "SEV4",
+    "title": "Missing database index slows inventory-api lookups",
+    "description": "Request latency rose alongside database CPU and rows scanned per query. A frequently used filter column had no supporting index, causing full table scans.",
+    "resolution_summary": "Added an index matching the lookup filter, verified the query plan used it, and confirmed latency and database CPU recovered.",
+    "tags": [
+      "database",
+      "index",
+      "latency"
+    ]
+  },
+  {
+    "id": "INC-0181",
+    "created_at": "2026-01-28T18:58:36Z",
+    "environment": "qa",
+    "service": "inventory-api",
+    "severity": "SEV2",
+    "title": "Database connection exhaustion causes inventory-api failures",
+    "description": "HTTP 503 responses increased as the database connection pool reached its limit. Connections were not released after exceptions in request handlers.",
+    "resolution_summary": "Fixed connection cleanup in the exception handler, restarted affected instances, and verified pool usage recovered.",
+    "tags": [
+      "database",
+      "connection-pool",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0182",
+    "created_at": "2026-05-10T11:42:10Z",
+    "environment": "dev",
+    "service": "billing-api",
+    "severity": "SEV3",
+    "title": "Incorrect database hostname breaks billing-api readiness",
+    "description": "All newly deployed instances failed readiness checks. The database hostname in the new configuration was incorrect.",
+    "resolution_summary": "Restored the correct database hostname and redeployed. Readiness checks and database connectivity passed.",
+    "tags": [
+      "configuration",
+      "deployment",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0183",
+    "created_at": "2026-03-27T18:36:35Z",
+    "environment": "stage",
+    "service": "auth-service",
+    "severity": "SEV3",
+    "title": "Expired client certificate blocks auth-service requests",
+    "description": "Mutual TLS handshakes failed and downstream authentication was rejected. The client certificate had not been renewed before expiry.",
+    "resolution_summary": "Renewed the client certificate, reloaded the service, and verified successful TLS authentication.",
+    "tags": [
+      "authentication",
+      "certificate",
+      "tls"
+    ]
+  },
+  {
+    "id": "INC-0184",
+    "created_at": "2026-02-18T13:32:31Z",
+    "environment": "prod",
+    "service": "billing-worker",
+    "severity": "SEV3",
+    "title": "Queue backlog grows while billing-worker workers are saturated",
+    "description": "Queued jobs were delayed while worker CPU usage stayed near capacity. The consumer replica count was too low for the incoming message rate.",
+    "resolution_summary": "Increased consumer replicas within downstream capacity, drained the queue, and configured scaling on queue age.",
+    "tags": [
+      "queue",
+      "backlog",
+      "worker-capacity"
+    ]
+  },
+  {
+    "id": "INC-0185",
+    "created_at": "2026-01-21T17:02:24Z",
+    "environment": "qa",
+    "service": "payments-api",
+    "severity": "SEV3",
+    "title": "Stale resolver configuration causes DNS errors in payments-api",
+    "description": "DNS queries timed out even though target services were healthy. The resolver configuration still referenced a DNS server removed during maintenance.",
+    "resolution_summary": "Removed the retired DNS server from resolver configuration, reloaded affected instances, and verified repeated name lookups.",
+    "tags": [
+      "dns",
+      "network",
+      "timeout"
+    ]
+  },
+  {
+    "id": "INC-0186",
+    "created_at": "2026-02-27T07:52:30Z",
+    "environment": "dev",
+    "service": "billing-api",
+    "severity": "SEV3",
+    "title": "Egress firewall blocks billing-api payment requests",
+    "description": "Payment requests failed with TCP connect timeouts after a network policy change. An egress firewall rule blocked the payment provider's documented address range.",
+    "resolution_summary": "Restored the payment provider egress allowlist and verified connectivity. Reconciled payment statuses before retrying unresolved authorizations.",
+    "tags": [
+      "payment",
+      "timeout",
+      "firewall"
+    ]
+  },
+  {
+    "id": "INC-0187",
+    "created_at": "2026-04-20T21:25:13Z",
+    "environment": "dev",
+    "service": "reports-worker",
+    "severity": "SEV3",
+    "title": "Unrotated logs fill the reports-worker data volume",
+    "description": "Disk utilization reached capacity and writes to the local volume failed. Log rotation was disabled, allowing local application logs to fill the volume.",
+    "resolution_summary": "Archived and removed expired application logs, restored log rotation, and verified free space and successful writes.",
+    "tags": [
+      "storage",
+      "disk-full",
+      "log-rotation"
+    ]
+  },
+  {
+    "id": "INC-0188",
+    "created_at": "2026-04-28T21:07:40Z",
+    "environment": "stage",
+    "service": "catalog-api",
+    "severity": "SEV2",
+    "title": "Synchronized cache expiry increases catalog-api latency",
+    "description": "A sudden drop in cache hit rate coincided with slow responses and database load. Popular cache entries used identical expiration times, triggering concurrent refreshes.",
+    "resolution_summary": "Added expiration jitter and single-flight cache refresh, warmed popular entries, and verified database load stabilized.",
+    "tags": [
+      "cache",
+      "latency",
+      "database"
+    ]
+  },
+  {
+    "id": "INC-0189",
+    "created_at": "2026-05-27T17:14:43Z",
+    "environment": "qa",
+    "service": "sync-worker",
+    "severity": "SEV4",
+    "title": "Immediate retries amplify provider rate limits in sync-worker",
+    "description": "The external provider returned HTTP 429 while retry volume continued rising. The retry loop ignored Retry-After and had no backoff or concurrency cap.",
+    "resolution_summary": "Honored Retry-After, added exponential backoff with jitter, capped concurrency, and verified delivery recovered within provider limits.",
+    "tags": [
+      "rate-limit",
+      "retry",
+      "http-429"
+    ]
+  },
+  {
+    "id": "INC-0190",
+    "created_at": "2026-06-03T03:11:28Z",
+    "environment": "prod",
+    "service": "exports-worker",
+    "severity": "SEV2",
+    "title": "Unbounded export buffering causes exports-worker restarts",
+    "description": "Large export jobs were killed when memory usage exceeded the container limit. The export implementation buffered the entire result set in memory.",
+    "resolution_summary": "Replaced full-result buffering with bounded streaming batches, reran failed exports, and verified memory stayed within limits.",
+    "tags": [
+      "memory",
+      "export",
+      "oom"
+    ]
+  },
+  {
+    "id": "INC-0191",
+    "created_at": "2026-06-26T15:10:22Z",
+    "environment": "stage",
+    "service": "orders-api",
+    "severity": "SEV2",
+    "title": "orders-api queries fail because a required column is absent",
+    "description": "Requests returned HTTP 500 with column-does-not-exist errors after deployment. The application was deployed before its backward-compatible database migration ran.",
+    "resolution_summary": "Rolled back the application, applied and verified the missing migration, then redeployed and checked affected queries.",
+    "tags": [
+      "database",
+      "migration",
+      "http-500"
+    ]
+  },
+  {
+    "id": "INC-0192",
+    "created_at": "2026-01-26T15:54:33Z",
+    "environment": "stage",
+    "service": "inventory-api",
+    "severity": "SEV4",
+    "title": "Full table scans increase inventory-api request latency",
+    "description": "Filtered lookup requests became slow as the table grew. A frequently used filter column had no supporting index, causing full table scans.",
+    "resolution_summary": "Added an index matching the lookup filter, verified the query plan used it, and confirmed latency and database CPU recovered.",
+    "tags": [
+      "database",
+      "index",
+      "latency"
+    ]
+  },
+  {
+    "id": "INC-0193",
+    "created_at": "2026-06-27T11:46:36Z",
+    "environment": "prod",
+    "service": "catalog-api",
+    "severity": "SEV2",
+    "title": "Database connection exhaustion causes catalog-api failures",
+    "description": "Requests failed with connection acquisition timeouts during a traffic spike. Connections were not released after exceptions in request handlers.",
+    "resolution_summary": "Fixed connection cleanup in the exception handler, restarted affected instances, and verified pool usage recovered.",
+    "tags": [
+      "database",
+      "connection-pool",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0194",
+    "created_at": "2026-01-15T14:55:13Z",
+    "environment": "qa",
+    "service": "billing-api",
+    "severity": "SEV2",
+    "title": "Incorrect database hostname breaks billing-api readiness",
+    "description": "The rollout stalled with HTTP 503 responses and database host lookup failures. The database hostname in the new configuration was incorrect.",
+    "resolution_summary": "Restored the correct database hostname and redeployed. Readiness checks and database connectivity passed.",
+    "tags": [
+      "configuration",
+      "deployment",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0195",
+    "created_at": "2026-06-03T12:50:42Z",
+    "environment": "prod",
+    "service": "auth-service",
+    "severity": "SEV1",
+    "title": "Expired client certificate blocks auth-service requests",
+    "description": "Service-to-service requests failed with certificate-expired errors. The client certificate had not been renewed before expiry.",
+    "resolution_summary": "Renewed the client certificate, reloaded the service, and verified successful TLS authentication.",
+    "tags": [
+      "authentication",
+      "certificate",
+      "tls"
+    ]
+  },
+  {
+    "id": "INC-0196",
+    "created_at": "2026-03-13T13:44:01Z",
+    "environment": "stage",
+    "service": "orders-worker",
+    "severity": "SEV4",
+    "title": "Insufficient orders-worker consumers delay queued jobs",
+    "description": "Queued jobs were delayed while worker CPU usage stayed near capacity. The consumer replica count was too low for the incoming message rate.",
+    "resolution_summary": "Increased consumer replicas within downstream capacity, drained the queue, and configured scaling on queue age.",
+    "tags": [
+      "queue",
+      "backlog",
+      "worker-capacity"
+    ]
+  },
+  {
+    "id": "INC-0197",
+    "created_at": "2026-05-12T00:57:58Z",
+    "environment": "qa",
+    "service": "orders-api",
+    "severity": "SEV3",
+    "title": "DNS lookup timeouts interrupt orders-api outbound requests",
+    "description": "DNS queries timed out even though target services were healthy. The resolver configuration still referenced a DNS server removed during maintenance.",
+    "resolution_summary": "Removed the retired DNS server from resolver configuration, reloaded affected instances, and verified repeated name lookups.",
+    "tags": [
+      "dns",
+      "network",
+      "timeout"
+    ]
+  },
+  {
+    "id": "INC-0198",
+    "created_at": "2026-02-12T23:38:45Z",
+    "environment": "dev",
+    "service": "billing-api",
+    "severity": "SEV3",
+    "title": "Egress firewall blocks billing-api payment requests",
+    "description": "Payment requests failed with TCP connect timeouts after a network policy change. An egress firewall rule blocked the payment provider's documented address range.",
+    "resolution_summary": "Restored the payment provider egress allowlist and verified connectivity. Reconciled payment statuses before retrying unresolved authorizations.",
+    "tags": [
+      "payment",
+      "timeout",
+      "firewall"
+    ]
+  },
+  {
+    "id": "INC-0199",
+    "created_at": "2026-03-21T06:47:47Z",
+    "environment": "dev",
+    "service": "audit-service",
+    "severity": "SEV1",
+    "title": "audit-service stops writing when storage capacity is exhausted",
+    "description": "Jobs failed with no-space-left-on-device errors. Log rotation was disabled, allowing local application logs to fill the volume.",
+    "resolution_summary": "Archived and removed expired application logs, restored log rotation, and verified free space and successful writes.",
+    "tags": [
+      "storage",
+      "disk-full",
+      "log-rotation"
+    ]
+  },
+  {
+    "id": "INC-0200",
+    "created_at": "2026-04-06T15:47:49Z",
+    "environment": "dev",
+    "service": "inventory-api",
+    "severity": "SEV2",
+    "title": "Synchronized cache expiry increases inventory-api latency",
+    "description": "Latency and database reads spiked when popular cache entries expired together. Popular cache entries used identical expiration times, triggering concurrent refreshes.",
+    "resolution_summary": "Added expiration jitter and single-flight cache refresh, warmed popular entries, and verified database load stabilized.",
+    "tags": [
+      "cache",
+      "latency",
+      "database"
+    ]
+  },
+  {
+    "id": "INC-0201",
+    "created_at": "2026-03-30T02:07:59Z",
+    "environment": "stage",
+    "service": "webhooks-worker",
+    "severity": "SEV4",
+    "title": "webhooks-worker retry storm triggers repeated HTTP 429 responses",
+    "description": "The external provider returned HTTP 429 while retry volume continued rising. The retry loop ignored Retry-After and had no backoff or concurrency cap.",
+    "resolution_summary": "Honored Retry-After, added exponential backoff with jitter, capped concurrency, and verified delivery recovered within provider limits.",
+    "tags": [
+      "rate-limit",
+      "retry",
+      "http-429"
+    ]
+  },
+  {
+    "id": "INC-0202",
+    "created_at": "2026-05-08T04:09:26Z",
+    "environment": "dev",
+    "service": "exports-worker",
+    "severity": "SEV3",
+    "title": "Unbounded export buffering causes exports-worker restarts",
+    "description": "Worker restarts interrupted exports while smaller jobs continued to succeed. The export implementation buffered the entire result set in memory.",
+    "resolution_summary": "Replaced full-result buffering with bounded streaming batches, reran failed exports, and verified memory stayed within limits.",
+    "tags": [
+      "memory",
+      "export",
+      "oom"
+    ]
+  },
+  {
+    "id": "INC-0203",
+    "created_at": "2026-05-15T00:56:27Z",
+    "environment": "stage",
+    "service": "orders-api",
+    "severity": "SEV1",
+    "title": "orders-api queries fail because a required column is absent",
+    "description": "The new application release failed queries referencing a newly introduced column. The application was deployed before its backward-compatible database migration ran.",
+    "resolution_summary": "Rolled back the application, applied and verified the missing migration, then redeployed and checked affected queries.",
+    "tags": [
+      "database",
+      "migration",
+      "http-500"
+    ]
+  },
+  {
+    "id": "INC-0204",
+    "created_at": "2026-06-16T02:41:12Z",
+    "environment": "stage",
+    "service": "inventory-api",
+    "severity": "SEV2",
+    "title": "Full table scans increase inventory-api request latency",
+    "description": "Request latency rose alongside database CPU and rows scanned per query. A frequently used filter column had no supporting index, causing full table scans.",
+    "resolution_summary": "Added an index matching the lookup filter, verified the query plan used it, and confirmed latency and database CPU recovered.",
+    "tags": [
+      "database",
+      "index",
+      "latency"
+    ]
+  },
+  {
+    "id": "INC-0205",
+    "created_at": "2026-03-19T07:27:54Z",
+    "environment": "stage",
+    "service": "orders-api",
+    "severity": "SEV1",
+    "title": "orders-api returns 503 when database connections run out",
+    "description": "HTTP 503 responses increased as the database connection pool reached its limit. Connections were not released after exceptions in request handlers.",
+    "resolution_summary": "Fixed connection cleanup in the exception handler, restarted affected instances, and verified pool usage recovered.",
+    "tags": [
+      "database",
+      "connection-pool",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0206",
+    "created_at": "2026-05-09T16:43:34Z",
+    "environment": "qa",
+    "service": "orders-api",
+    "severity": "SEV4",
+    "title": "orders-api returns 503 after configuration deployment",
+    "description": "All newly deployed instances failed readiness checks. The database hostname in the new configuration was incorrect.",
+    "resolution_summary": "Restored the correct database hostname and redeployed. Readiness checks and database connectivity passed.",
+    "tags": [
+      "configuration",
+      "deployment",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0207",
+    "created_at": "2026-02-17T07:06:47Z",
+    "environment": "qa",
+    "service": "payments-api",
+    "severity": "SEV3",
+    "title": "Service authentication fails after certificate expiry in payments-api",
+    "description": "Service-to-service requests failed with certificate-expired errors. The client certificate had not been renewed before expiry.",
+    "resolution_summary": "Renewed the client certificate, reloaded the service, and verified successful TLS authentication.",
+    "tags": [
+      "authentication",
+      "certificate",
+      "tls"
+    ]
+  },
+  {
+    "id": "INC-0208",
+    "created_at": "2026-02-10T05:25:23Z",
+    "environment": "qa",
+    "service": "billing-worker",
+    "severity": "SEV2",
+    "title": "Insufficient billing-worker consumers delay queued jobs",
+    "description": "Queue depth and oldest message age increased under sustained load. The consumer replica count was too low for the incoming message rate.",
+    "resolution_summary": "Increased consumer replicas within downstream capacity, drained the queue, and configured scaling on queue age.",
+    "tags": [
+      "queue",
+      "backlog",
+      "worker-capacity"
+    ]
+  },
+  {
+    "id": "INC-0209",
+    "created_at": "2026-01-01T13:12:52Z",
+    "environment": "stage",
+    "service": "notifications-worker",
+    "severity": "SEV2",
+    "title": "DNS lookup timeouts interrupt notifications-worker outbound requests",
+    "description": "DNS queries timed out even though target services were healthy. The resolver configuration still referenced a DNS server removed during maintenance.",
+    "resolution_summary": "Removed the retired DNS server from resolver configuration, reloaded affected instances, and verified repeated name lookups.",
+    "tags": [
+      "dns",
+      "network",
+      "timeout"
+    ]
+  },
+  {
+    "id": "INC-0210",
+    "created_at": "2026-01-22T08:17:38Z",
+    "environment": "dev",
+    "service": "payments-api",
+    "severity": "SEV1",
+    "title": "Payment provider connections time out in payments-api",
+    "description": "Payment requests failed with TCP connect timeouts after a network policy change. An egress firewall rule blocked the payment provider's documented address range.",
+    "resolution_summary": "Restored the payment provider egress allowlist and verified connectivity. Reconciled payment statuses before retrying unresolved authorizations.",
+    "tags": [
+      "payment",
+      "timeout",
+      "firewall"
+    ]
+  },
+  {
+    "id": "INC-0211",
+    "created_at": "2026-04-25T08:15:12Z",
+    "environment": "stage",
+    "service": "reports-worker",
+    "severity": "SEV1",
+    "title": "reports-worker stops writing when storage capacity is exhausted",
+    "description": "Disk utilization reached capacity and writes to the local volume failed. Log rotation was disabled, allowing local application logs to fill the volume.",
+    "resolution_summary": "Archived and removed expired application logs, restored log rotation, and verified free space and successful writes.",
+    "tags": [
+      "storage",
+      "disk-full",
+      "log-rotation"
+    ]
+  },
+  {
+    "id": "INC-0212",
+    "created_at": "2026-01-25T14:44:15Z",
+    "environment": "prod",
+    "service": "catalog-api",
+    "severity": "SEV4",
+    "title": "Synchronized cache expiry increases catalog-api latency",
+    "description": "Latency and database reads spiked when popular cache entries expired together. Popular cache entries used identical expiration times, triggering concurrent refreshes.",
+    "resolution_summary": "Added expiration jitter and single-flight cache refresh, warmed popular entries, and verified database load stabilized.",
+    "tags": [
+      "cache",
+      "latency",
+      "database"
+    ]
+  },
+  {
+    "id": "INC-0213",
+    "created_at": "2026-03-29T01:06:50Z",
+    "environment": "stage",
+    "service": "webhooks-worker",
+    "severity": "SEV4",
+    "title": "Immediate retries amplify provider rate limits in webhooks-worker",
+    "description": "Delivery delays increased as rejected requests were immediately resubmitted. The retry loop ignored Retry-After and had no backoff or concurrency cap.",
+    "resolution_summary": "Honored Retry-After, added exponential backoff with jitter, capped concurrency, and verified delivery recovered within provider limits.",
+    "tags": [
+      "rate-limit",
+      "retry",
+      "http-429"
+    ]
+  },
+  {
+    "id": "INC-0214",
+    "created_at": "2026-02-13T00:29:48Z",
+    "environment": "dev",
+    "service": "analytics-worker",
+    "severity": "SEV4",
+    "title": "Unbounded export buffering causes analytics-worker restarts",
+    "description": "Worker restarts interrupted exports while smaller jobs continued to succeed. The export implementation buffered the entire result set in memory.",
+    "resolution_summary": "Replaced full-result buffering with bounded streaming batches, reran failed exports, and verified memory stayed within limits.",
+    "tags": [
+      "memory",
+      "export",
+      "oom"
+    ]
+  },
+  {
+    "id": "INC-0215",
+    "created_at": "2026-01-07T01:10:21Z",
+    "environment": "dev",
+    "service": "catalog-api",
+    "severity": "SEV2",
+    "title": "catalog-api queries fail because a required column is absent",
+    "description": "The new application release failed queries referencing a newly introduced column. The application was deployed before its backward-compatible database migration ran.",
+    "resolution_summary": "Rolled back the application, applied and verified the missing migration, then redeployed and checked affected queries.",
+    "tags": [
+      "database",
+      "migration",
+      "http-500"
+    ]
+  },
+  {
+    "id": "INC-0216",
+    "created_at": "2026-01-21T23:08:18Z",
+    "environment": "prod",
+    "service": "orders-api",
+    "severity": "SEV4",
+    "title": "Full table scans increase orders-api request latency",
+    "description": "Filtered lookup requests became slow as the table grew. A frequently used filter column had no supporting index, causing full table scans.",
+    "resolution_summary": "Added an index matching the lookup filter, verified the query plan used it, and confirmed latency and database CPU recovered.",
+    "tags": [
+      "database",
+      "index",
+      "latency"
+    ]
+  },
+  {
+    "id": "INC-0217",
+    "created_at": "2026-03-04T13:08:59Z",
+    "environment": "qa",
+    "service": "orders-api",
+    "severity": "SEV1",
+    "title": "orders-api returns 503 when database connections run out",
+    "description": "HTTP 503 responses increased as the database connection pool reached its limit. Connections were not released after exceptions in request handlers.",
+    "resolution_summary": "Fixed connection cleanup in the exception handler, restarted affected instances, and verified pool usage recovered.",
+    "tags": [
+      "database",
+      "connection-pool",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0218",
+    "created_at": "2026-05-03T22:21:04Z",
+    "environment": "stage",
+    "service": "inventory-api",
+    "severity": "SEV3",
+    "title": "Incorrect database hostname breaks inventory-api readiness",
+    "description": "The rollout stalled with HTTP 503 responses and database host lookup failures. The database hostname in the new configuration was incorrect.",
+    "resolution_summary": "Restored the correct database hostname and redeployed. Readiness checks and database connectivity passed.",
+    "tags": [
+      "configuration",
+      "deployment",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0219",
+    "created_at": "2026-04-28T13:29:36Z",
+    "environment": "prod",
+    "service": "orders-api",
+    "severity": "SEV1",
+    "title": "Service authentication fails after certificate expiry in orders-api",
+    "description": "Service-to-service requests failed with certificate-expired errors. The client certificate had not been renewed before expiry.",
+    "resolution_summary": "Renewed the client certificate, reloaded the service, and verified successful TLS authentication.",
+    "tags": [
+      "authentication",
+      "certificate",
+      "tls"
+    ]
+  },
+  {
+    "id": "INC-0220",
+    "created_at": "2026-03-29T16:23:54Z",
+    "environment": "qa",
+    "service": "orders-worker",
+    "severity": "SEV3",
+    "title": "Insufficient orders-worker consumers delay queued jobs",
+    "description": "Queued jobs were delayed while worker CPU usage stayed near capacity. The consumer replica count was too low for the incoming message rate.",
+    "resolution_summary": "Increased consumer replicas within downstream capacity, drained the queue, and configured scaling on queue age.",
+    "tags": [
+      "queue",
+      "backlog",
+      "worker-capacity"
+    ]
+  },
+  {
+    "id": "INC-0221",
+    "created_at": "2026-03-22T18:39:08Z",
+    "environment": "dev",
+    "service": "payments-api",
+    "severity": "SEV3",
+    "title": "Stale resolver configuration causes DNS errors in payments-api",
+    "description": "DNS queries timed out even though target services were healthy. The resolver configuration still referenced a DNS server removed during maintenance.",
+    "resolution_summary": "Removed the retired DNS server from resolver configuration, reloaded affected instances, and verified repeated name lookups.",
+    "tags": [
+      "dns",
+      "network",
+      "timeout"
+    ]
+  },
+  {
+    "id": "INC-0222",
+    "created_at": "2026-02-19T11:52:21Z",
+    "environment": "stage",
+    "service": "billing-api",
+    "severity": "SEV1",
+    "title": "Egress firewall blocks billing-api payment requests",
+    "description": "Payment authorization attempts timed out before a connection was established. An egress firewall rule blocked the payment provider's documented address range.",
+    "resolution_summary": "Restored the payment provider egress allowlist and verified connectivity. Reconciled payment statuses before retrying unresolved authorizations.",
+    "tags": [
+      "payment",
+      "timeout",
+      "firewall"
+    ]
+  },
+  {
+    "id": "INC-0223",
+    "created_at": "2026-06-11T12:20:16Z",
+    "environment": "dev",
+    "service": "reports-worker",
+    "severity": "SEV1",
+    "title": "Unrotated logs fill the reports-worker data volume",
+    "description": "Jobs failed with no-space-left-on-device errors. Log rotation was disabled, allowing local application logs to fill the volume.",
+    "resolution_summary": "Archived and removed expired application logs, restored log rotation, and verified free space and successful writes.",
+    "tags": [
+      "storage",
+      "disk-full",
+      "log-rotation"
+    ]
+  },
+  {
+    "id": "INC-0224",
+    "created_at": "2026-05-24T11:02:20Z",
+    "environment": "stage",
+    "service": "pricing-api",
+    "severity": "SEV2",
+    "title": "Synchronized cache expiry increases pricing-api latency",
+    "description": "A sudden drop in cache hit rate coincided with slow responses and database load. Popular cache entries used identical expiration times, triggering concurrent refreshes.",
+    "resolution_summary": "Added expiration jitter and single-flight cache refresh, warmed popular entries, and verified database load stabilized.",
+    "tags": [
+      "cache",
+      "latency",
+      "database"
+    ]
+  },
+  {
+    "id": "INC-0225",
+    "created_at": "2026-01-24T17:38:20Z",
+    "environment": "prod",
+    "service": "sync-worker",
+    "severity": "SEV3",
+    "title": "sync-worker retry storm triggers repeated HTTP 429 responses",
+    "description": "The external provider returned HTTP 429 while retry volume continued rising. The retry loop ignored Retry-After and had no backoff or concurrency cap.",
+    "resolution_summary": "Honored Retry-After, added exponential backoff with jitter, capped concurrency, and verified delivery recovered within provider limits.",
+    "tags": [
+      "rate-limit",
+      "retry",
+      "http-429"
+    ]
+  },
+  {
+    "id": "INC-0226",
+    "created_at": "2026-04-27T14:06:49Z",
+    "environment": "stage",
+    "service": "exports-worker",
+    "severity": "SEV3",
+    "title": "Large export exhausts memory in exports-worker",
+    "description": "Large export jobs were killed when memory usage exceeded the container limit. The export implementation buffered the entire result set in memory.",
+    "resolution_summary": "Replaced full-result buffering with bounded streaming batches, reran failed exports, and verified memory stayed within limits.",
+    "tags": [
+      "memory",
+      "export",
+      "oom"
+    ]
+  },
+  {
+    "id": "INC-0227",
+    "created_at": "2026-05-08T12:36:46Z",
+    "environment": "prod",
+    "service": "orders-api",
+    "severity": "SEV1",
+    "title": "Missing schema migration causes orders-api errors after release",
+    "description": "The new application release failed queries referencing a newly introduced column. The application was deployed before its backward-compatible database migration ran.",
+    "resolution_summary": "Rolled back the application, applied and verified the missing migration, then redeployed and checked affected queries.",
+    "tags": [
+      "database",
+      "migration",
+      "http-500"
+    ]
+  },
+  {
+    "id": "INC-0228",
+    "created_at": "2026-03-13T08:57:31Z",
+    "environment": "dev",
+    "service": "orders-api",
+    "severity": "SEV3",
+    "title": "Missing database index slows orders-api lookups",
+    "description": "Request latency rose alongside database CPU and rows scanned per query. A frequently used filter column had no supporting index, causing full table scans.",
+    "resolution_summary": "Added an index matching the lookup filter, verified the query plan used it, and confirmed latency and database CPU recovered.",
+    "tags": [
+      "database",
+      "index",
+      "latency"
+    ]
+  },
+  {
+    "id": "INC-0229",
+    "created_at": "2026-05-30T00:29:41Z",
+    "environment": "dev",
+    "service": "inventory-api",
+    "severity": "SEV3",
+    "title": "Database connection exhaustion causes inventory-api failures",
+    "description": "Requests failed with connection acquisition timeouts during a traffic spike. Connections were not released after exceptions in request handlers.",
+    "resolution_summary": "Fixed connection cleanup in the exception handler, restarted affected instances, and verified pool usage recovered.",
+    "tags": [
+      "database",
+      "connection-pool",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0230",
+    "created_at": "2026-02-23T01:31:56Z",
+    "environment": "stage",
+    "service": "orders-api",
+    "severity": "SEV3",
+    "title": "Incorrect database hostname breaks orders-api readiness",
+    "description": "All newly deployed instances failed readiness checks. The database hostname in the new configuration was incorrect.",
+    "resolution_summary": "Restored the correct database hostname and redeployed. Readiness checks and database connectivity passed.",
+    "tags": [
+      "configuration",
+      "deployment",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0231",
+    "created_at": "2026-06-18T21:51:14Z",
+    "environment": "qa",
+    "service": "auth-service",
+    "severity": "SEV3",
+    "title": "Expired client certificate blocks auth-service requests",
+    "description": "Service-to-service requests failed with certificate-expired errors. The client certificate had not been renewed before expiry.",
+    "resolution_summary": "Renewed the client certificate, reloaded the service, and verified successful TLS authentication.",
+    "tags": [
+      "authentication",
+      "certificate",
+      "tls"
+    ]
+  },
+  {
+    "id": "INC-0232",
+    "created_at": "2026-05-24T21:09:57Z",
+    "environment": "dev",
+    "service": "notifications-worker",
+    "severity": "SEV2",
+    "title": "Queue backlog grows while notifications-worker workers are saturated",
+    "description": "Queued jobs were delayed while worker CPU usage stayed near capacity. The consumer replica count was too low for the incoming message rate.",
+    "resolution_summary": "Increased consumer replicas within downstream capacity, drained the queue, and configured scaling on queue age.",
+    "tags": [
+      "queue",
+      "backlog",
+      "worker-capacity"
+    ]
+  },
+  {
+    "id": "INC-0233",
+    "created_at": "2026-03-30T02:08:33Z",
+    "environment": "stage",
+    "service": "payments-api",
+    "severity": "SEV2",
+    "title": "Stale resolver configuration causes DNS errors in payments-api",
+    "description": "DNS queries timed out even though target services were healthy. The resolver configuration still referenced a DNS server removed during maintenance.",
+    "resolution_summary": "Removed the retired DNS server from resolver configuration, reloaded affected instances, and verified repeated name lookups.",
+    "tags": [
+      "dns",
+      "network",
+      "timeout"
+    ]
+  },
+  {
+    "id": "INC-0234",
+    "created_at": "2026-03-04T23:44:01Z",
+    "environment": "dev",
+    "service": "billing-api",
+    "severity": "SEV1",
+    "title": "Payment provider connections time out in billing-api",
+    "description": "Payment authorization attempts timed out before a connection was established. An egress firewall rule blocked the payment provider's documented address range.",
+    "resolution_summary": "Restored the payment provider egress allowlist and verified connectivity. Reconciled payment statuses before retrying unresolved authorizations.",
+    "tags": [
+      "payment",
+      "timeout",
+      "firewall"
+    ]
+  },
+  {
+    "id": "INC-0235",
+    "created_at": "2026-01-10T15:54:36Z",
+    "environment": "dev",
+    "service": "audit-service",
+    "severity": "SEV2",
+    "title": "Unrotated logs fill the audit-service data volume",
+    "description": "Disk utilization reached capacity and writes to the local volume failed. Log rotation was disabled, allowing local application logs to fill the volume.",
+    "resolution_summary": "Archived and removed expired application logs, restored log rotation, and verified free space and successful writes.",
+    "tags": [
+      "storage",
+      "disk-full",
+      "log-rotation"
+    ]
+  },
+  {
+    "id": "INC-0236",
+    "created_at": "2026-04-28T21:10:45Z",
+    "environment": "prod",
+    "service": "inventory-api",
+    "severity": "SEV3",
+    "title": "Cache stampede overloads inventory-api database reads",
+    "description": "Latency and database reads spiked when popular cache entries expired together. Popular cache entries used identical expiration times, triggering concurrent refreshes.",
+    "resolution_summary": "Added expiration jitter and single-flight cache refresh, warmed popular entries, and verified database load stabilized.",
+    "tags": [
+      "cache",
+      "latency",
+      "database"
+    ]
+  },
+  {
+    "id": "INC-0237",
+    "created_at": "2026-01-23T02:25:40Z",
+    "environment": "stage",
+    "service": "sync-worker",
+    "severity": "SEV3",
+    "title": "Immediate retries amplify provider rate limits in sync-worker",
+    "description": "Delivery delays increased as rejected requests were immediately resubmitted. The retry loop ignored Retry-After and had no backoff or concurrency cap.",
+    "resolution_summary": "Honored Retry-After, added exponential backoff with jitter, capped concurrency, and verified delivery recovered within provider limits.",
+    "tags": [
+      "rate-limit",
+      "retry",
+      "http-429"
+    ]
+  },
+  {
+    "id": "INC-0238",
+    "created_at": "2026-05-12T17:58:30Z",
+    "environment": "prod",
+    "service": "analytics-worker",
+    "severity": "SEV4",
+    "title": "Unbounded export buffering causes analytics-worker restarts",
+    "description": "Large export jobs were killed when memory usage exceeded the container limit. The export implementation buffered the entire result set in memory.",
+    "resolution_summary": "Replaced full-result buffering with bounded streaming batches, reran failed exports, and verified memory stayed within limits.",
+    "tags": [
+      "memory",
+      "export",
+      "oom"
+    ]
+  },
+  {
+    "id": "INC-0239",
+    "created_at": "2026-03-18T18:03:39Z",
+    "environment": "dev",
+    "service": "orders-api",
+    "severity": "SEV1",
+    "title": "Missing schema migration causes orders-api errors after release",
+    "description": "The new application release failed queries referencing a newly introduced column. The application was deployed before its backward-compatible database migration ran.",
+    "resolution_summary": "Rolled back the application, applied and verified the missing migration, then redeployed and checked affected queries.",
+    "tags": [
+      "database",
+      "migration",
+      "http-500"
+    ]
+  },
+  {
+    "id": "INC-0240",
+    "created_at": "2026-05-30T00:06:28Z",
+    "environment": "qa",
+    "service": "inventory-api",
+    "severity": "SEV3",
+    "title": "Full table scans increase inventory-api request latency",
+    "description": "Request latency rose alongside database CPU and rows scanned per query. A frequently used filter column had no supporting index, causing full table scans.",
+    "resolution_summary": "Added an index matching the lookup filter, verified the query plan used it, and confirmed latency and database CPU recovered.",
+    "tags": [
+      "database",
+      "index",
+      "latency"
+    ]
+  },
+  {
+    "id": "INC-0241",
+    "created_at": "2026-01-02T12:01:26Z",
+    "environment": "prod",
+    "service": "orders-api",
+    "severity": "SEV3",
+    "title": "Database connection exhaustion causes orders-api failures",
+    "description": "Requests failed with connection acquisition timeouts during a traffic spike. Connections were not released after exceptions in request handlers.",
+    "resolution_summary": "Fixed connection cleanup in the exception handler, restarted affected instances, and verified pool usage recovered.",
+    "tags": [
+      "database",
+      "connection-pool",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0242",
+    "created_at": "2026-03-15T19:53:42Z",
+    "environment": "qa",
+    "service": "orders-api",
+    "severity": "SEV4",
+    "title": "Incorrect database hostname breaks orders-api readiness",
+    "description": "All newly deployed instances failed readiness checks. The database hostname in the new configuration was incorrect.",
+    "resolution_summary": "Restored the correct database hostname and redeployed. Readiness checks and database connectivity passed.",
+    "tags": [
+      "configuration",
+      "deployment",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0243",
+    "created_at": "2026-06-17T08:06:46Z",
+    "environment": "dev",
+    "service": "payments-api",
+    "severity": "SEV2",
+    "title": "Service authentication fails after certificate expiry in payments-api",
+    "description": "Mutual TLS handshakes failed and downstream authentication was rejected. The client certificate had not been renewed before expiry.",
+    "resolution_summary": "Renewed the client certificate, reloaded the service, and verified successful TLS authentication.",
+    "tags": [
+      "authentication",
+      "certificate",
+      "tls"
+    ]
+  },
+  {
+    "id": "INC-0244",
+    "created_at": "2026-06-17T09:43:25Z",
+    "environment": "stage",
+    "service": "notifications-worker",
+    "severity": "SEV4",
+    "title": "Insufficient notifications-worker consumers delay queued jobs",
+    "description": "Queued jobs were delayed while worker CPU usage stayed near capacity. The consumer replica count was too low for the incoming message rate.",
+    "resolution_summary": "Increased consumer replicas within downstream capacity, drained the queue, and configured scaling on queue age.",
+    "tags": [
+      "queue",
+      "backlog",
+      "worker-capacity"
+    ]
+  },
+  {
+    "id": "INC-0245",
+    "created_at": "2026-05-05T07:16:35Z",
+    "environment": "prod",
+    "service": "notifications-worker",
+    "severity": "SEV3",
+    "title": "DNS lookup timeouts interrupt notifications-worker outbound requests",
+    "description": "DNS queries timed out even though target services were healthy. The resolver configuration still referenced a DNS server removed during maintenance.",
+    "resolution_summary": "Removed the retired DNS server from resolver configuration, reloaded affected instances, and verified repeated name lookups.",
+    "tags": [
+      "dns",
+      "network",
+      "timeout"
+    ]
+  },
+  {
+    "id": "INC-0246",
+    "created_at": "2026-03-05T01:31:45Z",
+    "environment": "qa",
+    "service": "payments-api",
+    "severity": "SEV3",
+    "title": "Egress firewall blocks payments-api payment requests",
+    "description": "Payment requests failed with TCP connect timeouts after a network policy change. An egress firewall rule blocked the payment provider's documented address range.",
+    "resolution_summary": "Restored the payment provider egress allowlist and verified connectivity. Reconciled payment statuses before retrying unresolved authorizations.",
+    "tags": [
+      "payment",
+      "timeout",
+      "firewall"
+    ]
+  },
+  {
+    "id": "INC-0247",
+    "created_at": "2026-03-26T19:13:27Z",
+    "environment": "dev",
+    "service": "reports-worker",
+    "severity": "SEV1",
+    "title": "Unrotated logs fill the reports-worker data volume",
+    "description": "Disk utilization reached capacity and writes to the local volume failed. Log rotation was disabled, allowing local application logs to fill the volume.",
+    "resolution_summary": "Archived and removed expired application logs, restored log rotation, and verified free space and successful writes.",
+    "tags": [
+      "storage",
+      "disk-full",
+      "log-rotation"
+    ]
+  },
+  {
+    "id": "INC-0248",
+    "created_at": "2026-01-16T06:31:19Z",
+    "environment": "prod",
+    "service": "pricing-api",
+    "severity": "SEV3",
+    "title": "Cache stampede overloads pricing-api database reads",
+    "description": "Latency and database reads spiked when popular cache entries expired together. Popular cache entries used identical expiration times, triggering concurrent refreshes.",
+    "resolution_summary": "Added expiration jitter and single-flight cache refresh, warmed popular entries, and verified database load stabilized.",
+    "tags": [
+      "cache",
+      "latency",
+      "database"
+    ]
+  },
+  {
+    "id": "INC-0249",
+    "created_at": "2026-06-01T06:57:08Z",
+    "environment": "qa",
+    "service": "webhooks-worker",
+    "severity": "SEV2",
+    "title": "Immediate retries amplify provider rate limits in webhooks-worker",
+    "description": "The external provider returned HTTP 429 while retry volume continued rising. The retry loop ignored Retry-After and had no backoff or concurrency cap.",
+    "resolution_summary": "Honored Retry-After, added exponential backoff with jitter, capped concurrency, and verified delivery recovered within provider limits.",
+    "tags": [
+      "rate-limit",
+      "retry",
+      "http-429"
+    ]
+  },
+  {
+    "id": "INC-0250",
+    "created_at": "2026-03-10T04:14:36Z",
+    "environment": "qa",
+    "service": "exports-worker",
+    "severity": "SEV2",
+    "title": "Large export exhausts memory in exports-worker",
+    "description": "Large export jobs were killed when memory usage exceeded the container limit. The export implementation buffered the entire result set in memory.",
+    "resolution_summary": "Replaced full-result buffering with bounded streaming batches, reran failed exports, and verified memory stayed within limits.",
+    "tags": [
+      "memory",
+      "export",
+      "oom"
+    ]
+  },
+  {
+    "id": "INC-0251",
+    "created_at": "2026-02-08T07:21:11Z",
+    "environment": "qa",
+    "service": "billing-api",
+    "severity": "SEV3",
+    "title": "Missing schema migration causes billing-api errors after release",
+    "description": "Requests returned HTTP 500 with column-does-not-exist errors after deployment. The application was deployed before its backward-compatible database migration ran.",
+    "resolution_summary": "Rolled back the application, applied and verified the missing migration, then redeployed and checked affected queries.",
+    "tags": [
+      "database",
+      "migration",
+      "http-500"
+    ]
+  },
+  {
+    "id": "INC-0252",
+    "created_at": "2026-05-31T01:43:59Z",
+    "environment": "prod",
+    "service": "inventory-api",
+    "severity": "SEV3",
+    "title": "Full table scans increase inventory-api request latency",
+    "description": "Request latency rose alongside database CPU and rows scanned per query. A frequently used filter column had no supporting index, causing full table scans.",
+    "resolution_summary": "Added an index matching the lookup filter, verified the query plan used it, and confirmed latency and database CPU recovered.",
+    "tags": [
+      "database",
+      "index",
+      "latency"
+    ]
+  },
+  {
+    "id": "INC-0253",
+    "created_at": "2026-03-03T09:18:50Z",
+    "environment": "qa",
+    "service": "inventory-api",
+    "severity": "SEV2",
+    "title": "inventory-api returns 503 when database connections run out",
+    "description": "HTTP 503 responses increased as the database connection pool reached its limit. Connections were not released after exceptions in request handlers.",
+    "resolution_summary": "Fixed connection cleanup in the exception handler, restarted affected instances, and verified pool usage recovered.",
+    "tags": [
+      "database",
+      "connection-pool",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0254",
+    "created_at": "2026-05-03T14:28:04Z",
+    "environment": "stage",
+    "service": "billing-api",
+    "severity": "SEV3",
+    "title": "billing-api returns 503 after configuration deployment",
+    "description": "The rollout stalled with HTTP 503 responses and database host lookup failures. The database hostname in the new configuration was incorrect.",
+    "resolution_summary": "Restored the correct database hostname and redeployed. Readiness checks and database connectivity passed.",
+    "tags": [
+      "configuration",
+      "deployment",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0255",
+    "created_at": "2026-01-15T09:45:12Z",
+    "environment": "stage",
+    "service": "orders-api",
+    "severity": "SEV2",
+    "title": "Expired client certificate blocks orders-api requests",
+    "description": "Service-to-service requests failed with certificate-expired errors. The client certificate had not been renewed before expiry.",
+    "resolution_summary": "Renewed the client certificate, reloaded the service, and verified successful TLS authentication.",
+    "tags": [
+      "authentication",
+      "certificate",
+      "tls"
+    ]
+  },
+  {
+    "id": "INC-0256",
+    "created_at": "2026-03-13T14:26:30Z",
+    "environment": "stage",
+    "service": "notifications-worker",
+    "severity": "SEV2",
+    "title": "Queue backlog grows while notifications-worker workers are saturated",
+    "description": "Queued jobs were delayed while worker CPU usage stayed near capacity. The consumer replica count was too low for the incoming message rate.",
+    "resolution_summary": "Increased consumer replicas within downstream capacity, drained the queue, and configured scaling on queue age.",
+    "tags": [
+      "queue",
+      "backlog",
+      "worker-capacity"
+    ]
+  },
+  {
+    "id": "INC-0257",
+    "created_at": "2026-04-23T16:31:51Z",
+    "environment": "dev",
+    "service": "payments-api",
+    "severity": "SEV3",
+    "title": "DNS lookup timeouts interrupt payments-api outbound requests",
+    "description": "DNS queries timed out even though target services were healthy. The resolver configuration still referenced a DNS server removed during maintenance.",
+    "resolution_summary": "Removed the retired DNS server from resolver configuration, reloaded affected instances, and verified repeated name lookups.",
+    "tags": [
+      "dns",
+      "network",
+      "timeout"
+    ]
+  },
+  {
+    "id": "INC-0258",
+    "created_at": "2026-04-03T08:35:30Z",
+    "environment": "qa",
+    "service": "billing-api",
+    "severity": "SEV1",
+    "title": "Egress firewall blocks billing-api payment requests",
+    "description": "Payment authorization attempts timed out before a connection was established. An egress firewall rule blocked the payment provider's documented address range.",
+    "resolution_summary": "Restored the payment provider egress allowlist and verified connectivity. Reconciled payment statuses before retrying unresolved authorizations.",
+    "tags": [
+      "payment",
+      "timeout",
+      "firewall"
+    ]
+  },
+  {
+    "id": "INC-0259",
+    "created_at": "2026-05-19T16:57:06Z",
+    "environment": "dev",
+    "service": "billing-worker",
+    "severity": "SEV3",
+    "title": "billing-worker stops writing when storage capacity is exhausted",
+    "description": "Jobs failed with no-space-left-on-device errors. Log rotation was disabled, allowing local application logs to fill the volume.",
+    "resolution_summary": "Archived and removed expired application logs, restored log rotation, and verified free space and successful writes.",
+    "tags": [
+      "storage",
+      "disk-full",
+      "log-rotation"
+    ]
+  },
+  {
+    "id": "INC-0260",
+    "created_at": "2026-05-18T09:45:22Z",
+    "environment": "prod",
+    "service": "catalog-api",
+    "severity": "SEV3",
+    "title": "Synchronized cache expiry increases catalog-api latency",
+    "description": "A sudden drop in cache hit rate coincided with slow responses and database load. Popular cache entries used identical expiration times, triggering concurrent refreshes.",
+    "resolution_summary": "Added expiration jitter and single-flight cache refresh, warmed popular entries, and verified database load stabilized.",
+    "tags": [
+      "cache",
+      "latency",
+      "database"
+    ]
+  },
+  {
+    "id": "INC-0261",
+    "created_at": "2026-06-28T05:53:43Z",
+    "environment": "stage",
+    "service": "webhooks-worker",
+    "severity": "SEV3",
+    "title": "webhooks-worker retry storm triggers repeated HTTP 429 responses",
+    "description": "Delivery delays increased as rejected requests were immediately resubmitted. The retry loop ignored Retry-After and had no backoff or concurrency cap.",
+    "resolution_summary": "Honored Retry-After, added exponential backoff with jitter, capped concurrency, and verified delivery recovered within provider limits.",
+    "tags": [
+      "rate-limit",
+      "retry",
+      "http-429"
+    ]
+  },
+  {
+    "id": "INC-0262",
+    "created_at": "2026-04-27T02:21:00Z",
+    "environment": "dev",
+    "service": "analytics-worker",
+    "severity": "SEV4",
+    "title": "Unbounded export buffering causes analytics-worker restarts",
+    "description": "Large export jobs were killed when memory usage exceeded the container limit. The export implementation buffered the entire result set in memory.",
+    "resolution_summary": "Replaced full-result buffering with bounded streaming batches, reran failed exports, and verified memory stayed within limits.",
+    "tags": [
+      "memory",
+      "export",
+      "oom"
+    ]
+  },
+  {
+    "id": "INC-0263",
+    "created_at": "2026-01-19T08:25:46Z",
+    "environment": "prod",
+    "service": "billing-api",
+    "severity": "SEV2",
+    "title": "billing-api queries fail because a required column is absent",
+    "description": "Requests returned HTTP 500 with column-does-not-exist errors after deployment. The application was deployed before its backward-compatible database migration ran.",
+    "resolution_summary": "Rolled back the application, applied and verified the missing migration, then redeployed and checked affected queries.",
+    "tags": [
+      "database",
+      "migration",
+      "http-500"
+    ]
+  },
+  {
+    "id": "INC-0264",
+    "created_at": "2026-01-16T19:49:36Z",
+    "environment": "qa",
+    "service": "catalog-api",
+    "severity": "SEV3",
+    "title": "Full table scans increase catalog-api request latency",
+    "description": "Request latency rose alongside database CPU and rows scanned per query. A frequently used filter column had no supporting index, causing full table scans.",
+    "resolution_summary": "Added an index matching the lookup filter, verified the query plan used it, and confirmed latency and database CPU recovered.",
+    "tags": [
+      "database",
+      "index",
+      "latency"
+    ]
+  },
+  {
+    "id": "INC-0265",
+    "created_at": "2026-04-26T13:05:35Z",
+    "environment": "dev",
+    "service": "orders-api",
+    "severity": "SEV2",
+    "title": "Database connection exhaustion causes orders-api failures",
+    "description": "HTTP 503 responses increased as the database connection pool reached its limit. Connections were not released after exceptions in request handlers.",
+    "resolution_summary": "Fixed connection cleanup in the exception handler, restarted affected instances, and verified pool usage recovered.",
+    "tags": [
+      "database",
+      "connection-pool",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0266",
+    "created_at": "2026-05-11T02:58:07Z",
+    "environment": "dev",
+    "service": "orders-api",
+    "severity": "SEV4",
+    "title": "Incorrect database hostname breaks orders-api readiness",
+    "description": "The rollout stalled with HTTP 503 responses and database host lookup failures. The database hostname in the new configuration was incorrect.",
+    "resolution_summary": "Restored the correct database hostname and redeployed. Readiness checks and database connectivity passed.",
+    "tags": [
+      "configuration",
+      "deployment",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0267",
+    "created_at": "2026-03-12T09:49:39Z",
+    "environment": "stage",
+    "service": "auth-service",
+    "severity": "SEV1",
+    "title": "Service authentication fails after certificate expiry in auth-service",
+    "description": "Mutual TLS handshakes failed and downstream authentication was rejected. The client certificate had not been renewed before expiry.",
+    "resolution_summary": "Renewed the client certificate, reloaded the service, and verified successful TLS authentication.",
+    "tags": [
+      "authentication",
+      "certificate",
+      "tls"
+    ]
+  },
+  {
+    "id": "INC-0268",
+    "created_at": "2026-02-07T06:48:33Z",
+    "environment": "qa",
+    "service": "orders-worker",
+    "severity": "SEV2",
+    "title": "Queue backlog grows while orders-worker workers are saturated",
+    "description": "Queue depth and oldest message age increased under sustained load. The consumer replica count was too low for the incoming message rate.",
+    "resolution_summary": "Increased consumer replicas within downstream capacity, drained the queue, and configured scaling on queue age.",
+    "tags": [
+      "queue",
+      "backlog",
+      "worker-capacity"
+    ]
+  },
+  {
+    "id": "INC-0269",
+    "created_at": "2026-06-13T23:19:17Z",
+    "environment": "dev",
+    "service": "payments-api",
+    "severity": "SEV4",
+    "title": "DNS lookup timeouts interrupt payments-api outbound requests",
+    "description": "DNS queries timed out even though target services were healthy. The resolver configuration still referenced a DNS server removed during maintenance.",
+    "resolution_summary": "Removed the retired DNS server from resolver configuration, reloaded affected instances, and verified repeated name lookups.",
+    "tags": [
+      "dns",
+      "network",
+      "timeout"
+    ]
+  },
+  {
+    "id": "INC-0270",
+    "created_at": "2026-01-26T10:43:58Z",
+    "environment": "prod",
+    "service": "billing-api",
+    "severity": "SEV1",
+    "title": "Payment provider connections time out in billing-api",
+    "description": "Payment authorization attempts timed out before a connection was established. An egress firewall rule blocked the payment provider's documented address range.",
+    "resolution_summary": "Restored the payment provider egress allowlist and verified connectivity. Reconciled payment statuses before retrying unresolved authorizations.",
+    "tags": [
+      "payment",
+      "timeout",
+      "firewall"
+    ]
+  },
+  {
+    "id": "INC-0271",
+    "created_at": "2026-05-30T17:34:34Z",
+    "environment": "qa",
+    "service": "audit-service",
+    "severity": "SEV3",
+    "title": "Unrotated logs fill the audit-service data volume",
+    "description": "Jobs failed with no-space-left-on-device errors. Log rotation was disabled, allowing local application logs to fill the volume.",
+    "resolution_summary": "Archived and removed expired application logs, restored log rotation, and verified free space and successful writes.",
+    "tags": [
+      "storage",
+      "disk-full",
+      "log-rotation"
+    ]
+  },
+  {
+    "id": "INC-0272",
+    "created_at": "2026-03-12T17:45:29Z",
+    "environment": "qa",
+    "service": "inventory-api",
+    "severity": "SEV3",
+    "title": "Cache stampede overloads inventory-api database reads",
+    "description": "A sudden drop in cache hit rate coincided with slow responses and database load. Popular cache entries used identical expiration times, triggering concurrent refreshes.",
+    "resolution_summary": "Added expiration jitter and single-flight cache refresh, warmed popular entries, and verified database load stabilized.",
+    "tags": [
+      "cache",
+      "latency",
+      "database"
+    ]
+  },
+  {
+    "id": "INC-0273",
+    "created_at": "2026-04-14T16:40:20Z",
+    "environment": "qa",
+    "service": "notifications-worker",
+    "severity": "SEV3",
+    "title": "notifications-worker retry storm triggers repeated HTTP 429 responses",
+    "description": "The external provider returned HTTP 429 while retry volume continued rising. The retry loop ignored Retry-After and had no backoff or concurrency cap.",
+    "resolution_summary": "Honored Retry-After, added exponential backoff with jitter, capped concurrency, and verified delivery recovered within provider limits.",
+    "tags": [
+      "rate-limit",
+      "retry",
+      "http-429"
+    ]
+  },
+  {
+    "id": "INC-0274",
+    "created_at": "2026-05-12T17:08:20Z",
+    "environment": "prod",
+    "service": "exports-worker",
+    "severity": "SEV3",
+    "title": "Unbounded export buffering causes exports-worker restarts",
+    "description": "Worker restarts interrupted exports while smaller jobs continued to succeed. The export implementation buffered the entire result set in memory.",
+    "resolution_summary": "Replaced full-result buffering with bounded streaming batches, reran failed exports, and verified memory stayed within limits.",
+    "tags": [
+      "memory",
+      "export",
+      "oom"
+    ]
+  },
+  {
+    "id": "INC-0275",
+    "created_at": "2026-04-13T10:08:26Z",
+    "environment": "prod",
+    "service": "catalog-api",
+    "severity": "SEV1",
+    "title": "Missing schema migration causes catalog-api errors after release",
+    "description": "Requests returned HTTP 500 with column-does-not-exist errors after deployment. The application was deployed before its backward-compatible database migration ran.",
+    "resolution_summary": "Rolled back the application, applied and verified the missing migration, then redeployed and checked affected queries.",
+    "tags": [
+      "database",
+      "migration",
+      "http-500"
+    ]
+  },
+  {
+    "id": "INC-0276",
+    "created_at": "2026-01-11T03:10:31Z",
+    "environment": "prod",
+    "service": "catalog-api",
+    "severity": "SEV3",
+    "title": "Missing database index slows catalog-api lookups",
+    "description": "Filtered lookup requests became slow as the table grew. A frequently used filter column had no supporting index, causing full table scans.",
+    "resolution_summary": "Added an index matching the lookup filter, verified the query plan used it, and confirmed latency and database CPU recovered.",
+    "tags": [
+      "database",
+      "index",
+      "latency"
+    ]
+  },
+  {
+    "id": "INC-0277",
+    "created_at": "2026-01-17T06:53:11Z",
+    "environment": "qa",
+    "service": "catalog-api",
+    "severity": "SEV2",
+    "title": "Database connection exhaustion causes catalog-api failures",
+    "description": "Requests failed with connection acquisition timeouts during a traffic spike. Connections were not released after exceptions in request handlers.",
+    "resolution_summary": "Fixed connection cleanup in the exception handler, restarted affected instances, and verified pool usage recovered.",
+    "tags": [
+      "database",
+      "connection-pool",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0278",
+    "created_at": "2026-01-18T19:24:58Z",
+    "environment": "qa",
+    "service": "billing-api",
+    "severity": "SEV3",
+    "title": "Incorrect database hostname breaks billing-api readiness",
+    "description": "All newly deployed instances failed readiness checks. The database hostname in the new configuration was incorrect.",
+    "resolution_summary": "Restored the correct database hostname and redeployed. Readiness checks and database connectivity passed.",
+    "tags": [
+      "configuration",
+      "deployment",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0279",
+    "created_at": "2026-01-11T08:11:42Z",
+    "environment": "prod",
+    "service": "payments-api",
+    "severity": "SEV3",
+    "title": "Expired client certificate blocks payments-api requests",
+    "description": "Service-to-service requests failed with certificate-expired errors. The client certificate had not been renewed before expiry.",
+    "resolution_summary": "Renewed the client certificate, reloaded the service, and verified successful TLS authentication.",
+    "tags": [
+      "authentication",
+      "certificate",
+      "tls"
+    ]
+  },
+  {
+    "id": "INC-0280",
+    "created_at": "2026-01-16T20:18:32Z",
+    "environment": "stage",
+    "service": "orders-worker",
+    "severity": "SEV2",
+    "title": "Queue backlog grows while orders-worker workers are saturated",
+    "description": "Queued jobs were delayed while worker CPU usage stayed near capacity. The consumer replica count was too low for the incoming message rate.",
+    "resolution_summary": "Increased consumer replicas within downstream capacity, drained the queue, and configured scaling on queue age.",
+    "tags": [
+      "queue",
+      "backlog",
+      "worker-capacity"
+    ]
+  },
+  {
+    "id": "INC-0281",
+    "created_at": "2026-06-12T22:50:41Z",
+    "environment": "stage",
+    "service": "orders-api",
+    "severity": "SEV2",
+    "title": "DNS lookup timeouts interrupt orders-api outbound requests",
+    "description": "Outbound calls failed intermittently with temporary name resolution errors. The resolver configuration still referenced a DNS server removed during maintenance.",
+    "resolution_summary": "Removed the retired DNS server from resolver configuration, reloaded affected instances, and verified repeated name lookups.",
+    "tags": [
+      "dns",
+      "network",
+      "timeout"
+    ]
+  },
+  {
+    "id": "INC-0282",
+    "created_at": "2026-06-28T03:22:33Z",
+    "environment": "prod",
+    "service": "checkout-api",
+    "severity": "SEV3",
+    "title": "Payment provider connections time out in checkout-api",
+    "description": "Payment requests failed with TCP connect timeouts after a network policy change. An egress firewall rule blocked the payment provider's documented address range.",
+    "resolution_summary": "Restored the payment provider egress allowlist and verified connectivity. Reconciled payment statuses before retrying unresolved authorizations.",
+    "tags": [
+      "payment",
+      "timeout",
+      "firewall"
+    ]
+  },
+  {
+    "id": "INC-0283",
+    "created_at": "2026-04-30T11:43:50Z",
+    "environment": "dev",
+    "service": "billing-worker",
+    "severity": "SEV1",
+    "title": "billing-worker stops writing when storage capacity is exhausted",
+    "description": "Disk utilization reached capacity and writes to the local volume failed. Log rotation was disabled, allowing local application logs to fill the volume.",
+    "resolution_summary": "Archived and removed expired application logs, restored log rotation, and verified free space and successful writes.",
+    "tags": [
+      "storage",
+      "disk-full",
+      "log-rotation"
+    ]
+  },
+  {
+    "id": "INC-0284",
+    "created_at": "2026-06-12T03:12:36Z",
+    "environment": "qa",
+    "service": "catalog-api",
+    "severity": "SEV4",
+    "title": "Cache stampede overloads catalog-api database reads",
+    "description": "Latency and database reads spiked when popular cache entries expired together. Popular cache entries used identical expiration times, triggering concurrent refreshes.",
+    "resolution_summary": "Added expiration jitter and single-flight cache refresh, warmed popular entries, and verified database load stabilized.",
+    "tags": [
+      "cache",
+      "latency",
+      "database"
+    ]
+  },
+  {
+    "id": "INC-0285",
+    "created_at": "2026-02-16T03:29:01Z",
+    "environment": "stage",
+    "service": "webhooks-worker",
+    "severity": "SEV2",
+    "title": "Immediate retries amplify provider rate limits in webhooks-worker",
+    "description": "The external provider returned HTTP 429 while retry volume continued rising. The retry loop ignored Retry-After and had no backoff or concurrency cap.",
+    "resolution_summary": "Honored Retry-After, added exponential backoff with jitter, capped concurrency, and verified delivery recovered within provider limits.",
+    "tags": [
+      "rate-limit",
+      "retry",
+      "http-429"
+    ]
+  },
+  {
+    "id": "INC-0286",
+    "created_at": "2026-05-05T01:43:51Z",
+    "environment": "prod",
+    "service": "exports-worker",
+    "severity": "SEV2",
+    "title": "Large export exhausts memory in exports-worker",
+    "description": "Worker restarts interrupted exports while smaller jobs continued to succeed. The export implementation buffered the entire result set in memory.",
+    "resolution_summary": "Replaced full-result buffering with bounded streaming batches, reran failed exports, and verified memory stayed within limits.",
+    "tags": [
+      "memory",
+      "export",
+      "oom"
+    ]
+  },
+  {
+    "id": "INC-0287",
+    "created_at": "2026-04-15T02:11:30Z",
+    "environment": "dev",
+    "service": "catalog-api",
+    "severity": "SEV3",
+    "title": "Missing schema migration causes catalog-api errors after release",
+    "description": "Requests returned HTTP 500 with column-does-not-exist errors after deployment. The application was deployed before its backward-compatible database migration ran.",
+    "resolution_summary": "Rolled back the application, applied and verified the missing migration, then redeployed and checked affected queries.",
+    "tags": [
+      "database",
+      "migration",
+      "http-500"
+    ]
+  },
+  {
+    "id": "INC-0288",
+    "created_at": "2026-03-25T08:23:53Z",
+    "environment": "dev",
+    "service": "catalog-api",
+    "severity": "SEV4",
+    "title": "Full table scans increase catalog-api request latency",
+    "description": "Filtered lookup requests became slow as the table grew. A frequently used filter column had no supporting index, causing full table scans.",
+    "resolution_summary": "Added an index matching the lookup filter, verified the query plan used it, and confirmed latency and database CPU recovered.",
+    "tags": [
+      "database",
+      "index",
+      "latency"
+    ]
+  },
+  {
+    "id": "INC-0289",
+    "created_at": "2026-03-22T21:20:44Z",
+    "environment": "qa",
+    "service": "inventory-api",
+    "severity": "SEV3",
+    "title": "inventory-api returns 503 when database connections run out",
+    "description": "HTTP 503 responses increased as the database connection pool reached its limit. Connections were not released after exceptions in request handlers.",
+    "resolution_summary": "Fixed connection cleanup in the exception handler, restarted affected instances, and verified pool usage recovered.",
+    "tags": [
+      "database",
+      "connection-pool",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0290",
+    "created_at": "2026-04-13T03:36:52Z",
+    "environment": "dev",
+    "service": "orders-api",
+    "severity": "SEV3",
+    "title": "Incorrect database hostname breaks orders-api readiness",
+    "description": "All newly deployed instances failed readiness checks. The database hostname in the new configuration was incorrect.",
+    "resolution_summary": "Restored the correct database hostname and redeployed. Readiness checks and database connectivity passed.",
+    "tags": [
+      "configuration",
+      "deployment",
+      "http-503"
+    ]
+  },
+  {
+    "id": "INC-0291",
+    "created_at": "2026-03-17T02:59:51Z",
+    "environment": "stage",
+    "service": "orders-api",
+    "severity": "SEV2",
+    "title": "Service authentication fails after certificate expiry in orders-api",
+    "description": "Mutual TLS handshakes failed and downstream authentication was rejected. The client certificate had not been renewed before expiry.",
+    "resolution_summary": "Renewed the client certificate, reloaded the service, and verified successful TLS authentication.",
+    "tags": [
+      "authentication",
+      "certificate",
+      "tls"
+    ]
+  },
+  {
+    "id": "INC-0292",
+    "created_at": "2026-03-08T22:53:45Z",
+    "environment": "qa",
+    "service": "notifications-worker",
+    "severity": "SEV4",
+    "title": "Queue backlog grows while notifications-worker workers are saturated",
+    "description": "Queued jobs were delayed while worker CPU usage stayed near capacity. The consumer replica count was too low for the incoming message rate.",
+    "resolution_summary": "Increased consumer replicas within downstream capacity, drained the queue, and configured scaling on queue age.",
+    "tags": [
+      "queue",
+      "backlog",
+      "worker-capacity"
+    ]
+  },
+  {
+    "id": "INC-0293",
+    "created_at": "2026-01-09T14:37:09Z",
+    "environment": "stage",
+    "service": "orders-api",
+    "severity": "SEV4",
+    "title": "Stale resolver configuration causes DNS errors in orders-api",
+    "description": "Outbound calls failed intermittently with temporary name resolution errors. The resolver configuration still referenced a DNS server removed during maintenance.",
+    "resolution_summary": "Removed the retired DNS server from resolver configuration, reloaded affected instances, and verified repeated name lookups.",
+    "tags": [
+      "dns",
+      "network",
+      "timeout"
+    ]
+  },
+  {
+    "id": "INC-0294",
+    "created_at": "2026-04-01T05:17:58Z",
+    "environment": "prod",
+    "service": "billing-api",
+    "severity": "SEV3",
+    "title": "Payment provider connections time out in billing-api",
+    "description": "Payment authorization attempts timed out before a connection was established. An egress firewall rule blocked the payment provider's documented address range.",
+    "resolution_summary": "Restored the payment provider egress allowlist and verified connectivity. Reconciled payment statuses before retrying unresolved authorizations.",
+    "tags": [
+      "payment",
+      "timeout",
+      "firewall"
+    ]
+  },
+  {
+    "id": "INC-0295",
+    "created_at": "2026-05-20T01:00:42Z",
+    "environment": "prod",
+    "service": "reports-worker",
+    "severity": "SEV1",
+    "title": "Unrotated logs fill the reports-worker data volume",
+    "description": "Jobs failed with no-space-left-on-device errors. Log rotation was disabled, allowing local application logs to fill the volume.",
+    "resolution_summary": "Archived and removed expired application logs, restored log rotation, and verified free space and successful writes.",
+    "tags": [
+      "storage",
+      "disk-full",
+      "log-rotation"
+    ]
+  },
+  {
+    "id": "INC-0296",
+    "created_at": "2026-06-03T14:50:10Z",
+    "environment": "qa",
+    "service": "catalog-api",
+    "severity": "SEV2",
+    "title": "Cache stampede overloads catalog-api database reads",
+    "description": "A sudden drop in cache hit rate coincided with slow responses and database load. Popular cache entries used identical expiration times, triggering concurrent refreshes.",
+    "resolution_summary": "Added expiration jitter and single-flight cache refresh, warmed popular entries, and verified database load stabilized.",
+    "tags": [
+      "cache",
+      "latency",
+      "database"
+    ]
+  },
+  {
+    "id": "INC-0297",
+    "created_at": "2026-03-19T07:51:30Z",
+    "environment": "prod",
+    "service": "sync-worker",
+    "severity": "SEV3",
+    "title": "Immediate retries amplify provider rate limits in sync-worker",
+    "description": "The external provider returned HTTP 429 while retry volume continued rising. The retry loop ignored Retry-After and had no backoff or concurrency cap.",
+    "resolution_summary": "Honored Retry-After, added exponential backoff with jitter, capped concurrency, and verified delivery recovered within provider limits.",
+    "tags": [
+      "rate-limit",
+      "retry",
+      "http-429"
+    ]
+  },
+  {
+    "id": "INC-0298",
+    "created_at": "2026-03-11T07:37:12Z",
+    "environment": "dev",
+    "service": "exports-worker",
+    "severity": "SEV4",
+    "title": "Unbounded export buffering causes exports-worker restarts",
+    "description": "Worker restarts interrupted exports while smaller jobs continued to succeed. The export implementation buffered the entire result set in memory.",
+    "resolution_summary": "Replaced full-result buffering with bounded streaming batches, reran failed exports, and verified memory stayed within limits.",
+    "tags": [
+      "memory",
+      "export",
+      "oom"
+    ]
+  },
+  {
+    "id": "INC-0299",
+    "created_at": "2026-06-05T05:12:20Z",
+    "environment": "stage",
+    "service": "orders-api",
+    "severity": "SEV2",
+    "title": "orders-api queries fail because a required column is absent",
+    "description": "The new application release failed queries referencing a newly introduced column. The application was deployed before its backward-compatible database migration ran.",
+    "resolution_summary": "Rolled back the application, applied and verified the missing migration, then redeployed and checked affected queries.",
+    "tags": [
+      "database",
+      "migration",
+      "http-500"
+    ]
+  },
+  {
+    "id": "INC-0300",
+    "created_at": "2026-03-07T20:01:30Z",
+    "environment": "qa",
+    "service": "catalog-api",
+    "severity": "SEV3",
+    "title": "Full table scans increase catalog-api request latency",
+    "description": "Request latency rose alongside database CPU and rows scanned per query. A frequently used filter column had no supporting index, causing full table scans.",
+    "resolution_summary": "Added an index matching the lookup filter, verified the query plan used it, and confirmed latency and database CPU recovered.",
+    "tags": [
+      "database",
+      "index",
+      "latency"
+    ]
+  }
+]

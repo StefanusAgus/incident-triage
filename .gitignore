@@ -225,6 +225,8 @@ __marimo__/
 # Incident triage local configuration, data, and uv caches
 .env.*
 !.env.example
-data/
+data/*
+!data/generate_data.py
+!data/incidents.json
 .uv-cache/
 .uv-python/

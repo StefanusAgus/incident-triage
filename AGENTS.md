@@ -40,6 +40,8 @@ Use `incident-triage-take-home.md` as the assignment;
 
 ## Workflow and evidence
 
+Use regular Bash syntax for README examples and terminal commands.
+
 Implement only the requested step, run relevant checks, report actual results
 and remaining issues, then stop before the next step. Do not build future
 features merely because the assignment requires them eventually.
