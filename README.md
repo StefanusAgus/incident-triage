@@ -4,6 +4,12 @@ FastAPI service for ingesting and searching historical incidents, then using a
 grounded OpenAI call to suggest relevant precedents, diagnostic checks, and a
 customer-facing draft. A minimal Streamlit UI is included.
 
+<img width="886" height="823" alt="image" src="https://github.com/user-attachments/assets/2afce031-a70f-4dbc-8004-b43d0e8a7d94" />
+
+<img width="886" height="823" alt="image" src="https://github.com/user-attachments/assets/95d01275-4d26-475b-925b-13a120147bdb" />
+
+
+
 ## Architecture
 
 - `app/ingest.py`: validates the complete dataset and synchronizes SQLite/FTS5.
